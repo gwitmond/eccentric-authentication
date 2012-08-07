@@ -26,7 +26,7 @@ function call (url)
 end
 
 
-plan(4)
+plan(6)
 
 local response = call({ url = "https://localhost:7443/index.html"})
 is(response.code, 200, "server is alive")

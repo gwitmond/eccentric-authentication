@@ -1,7 +1,7 @@
 # Makefile to configure SimpleSite
 
 
-## Create a simple self signed certificate for the simple site browser.
+## Create a simple self signed certificate for the simple site.
 ## For testing, that's ok.
 ## For production, you would want to use a longer key and publish the certificate with DNSSEC and DANE
 
