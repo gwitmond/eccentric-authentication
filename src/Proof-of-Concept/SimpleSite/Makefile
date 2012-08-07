@@ -3,8 +3,9 @@
 
 ## Create a simple self signed certificate for the simple site browser.
 ## For testing, that's ok.
-## For production, you would want to a longer key and publish these with DNSSEC and DANE
+## For production, you would want to use a longer key and publish the certificate with DNSSEC and DANE
 
+## This uses the standard openssl.cnf from your operating system
 DIR=demoCA
 KEY=server-key.pem
 CERT=server-cert.pem
@@ -24,7 +25,7 @@ $(KEY): .dir
 	openssl genrsa -out $(KEY) 1024
 
 $(CERT): $(KEY)
-	openssl req -new -key $(KEY) -out simple-req.csr -subj /C=NL/ST=ZH/L=Rott/O=DemoOrg/OU=DemoSigner/CN=simplesite
+	openssl req -new -key $(KEY) -out simple-req.csr -subj /C=NL/ST=ZH/L=Rott/O=DemoOrg/OU=DemoSigner/CN=localhost
 	openssl ca -create_serial -out $(CERT) -days 30 -keyfile $(KEY) -selfsign -extensions usr_cert -batch -infiles simple-req.csr
 	-rm simple-req.csr
 
@@ -36,11 +37,11 @@ clean:
 ######################################
 
 start:
-	mkdir -p temp
-	/usr/local/openresty/nginx/sbin/nginx -p `pwd`/temp -c ../nginx.conf
+	mkdir -p temp/logs
+	/usr/local/openresty/nginx/sbin/nginx -p `pwd`/temp/ -c ../nginx.conf
 
 reload:
-	/usr/local/openresty/nginx/sbin/nginx -p `pwd`/temp -c ../nginx.conf -s reload
+	/usr/local/openresty/nginx/sbin/nginx -p `pwd`/temp/ -c ../nginx.conf -s reload
 
 stop:
-	/usr/local/openresty/nginx/sbin/nginx -p `pwd`/temp -c ../nginx.conf -s stop
+	/usr/local/openresty/nginx/sbin/nginx -p `pwd`/temp/ -c ../nginx.conf -s stop
