@@ -26,7 +26,7 @@ function call (url)
 end
 
 
-plan(6)
+plan(9)
 
 local response = call({ url = "https://localhost:7443/index.html"})
 is(response.code, 200, "server is alive")
@@ -61,3 +61,59 @@ is(response.code, 400, "server has correctly rejected access to authenticated pa
 like(response.body, "495 -", "got 495-error page")
 -- It does give the /495.html page, so I consider it good enough (for now).
 
+--------------------------------------------
+-- Now test with a localCA signed signature
+--------------------------------------------
+-- utility to execute command with input and collect stdout
+function backtick(cmd, input)
+   local pipe = assert(io.popen(cmd, "r+"))
+   if input then 
+      pipe:write(input)
+      pipe:flush()
+   end
+
+   local t = {}
+   local line = pipe:read("*line")
+   while line do
+      table.insert(t, line)
+      line = pipe:read("*line")
+   end
+   pipe:close()
+   return t
+end
+
+-- create new client identifiers every time 
+CLIENT_KEY = -- os.tmpname() -- 
+   "private-key.pem"
+CLIENT_CSR = -- os.tmpname() -- 
+   "certificate-request.pem"
+CLIENT_CERT = -- os.tmpname() -- 
+   "certificate.pem"
+
+-- generate a random string, use find to take the basename of the filename.
+-- users are called lua_XYZZY
+_, _, CN=string.find(os.tmpname(), "/([^/]+)$")
+
+-- create a CSR
+req_cmd = "openssl req -new -newkey rsa:1024 -nodes -keyout " .. CLIENT_KEY  .. " -out " .. CLIENT_CSR .. " -subj /CN=" .. CN
+ok(os.execute(req_cmd), "create private key and CSR")
+
+-- sign the CSR with the CA directly (not via localCA website) so we can prove that this site accepts the localCA.
+CA_HOME = "/Users/guido/eccentric-authentication/src/Proof-of-Concept/localCA/subCA"
+ca_cmd = "openssl ca -config " .. CA_HOME .."/openssl-subca.cnf -policy policy_ecca -batch -out " .. CLIENT_CERT .. " -in " .. CLIENT_CSR
+out = backtick(ca_cmd)
+
+-- Generating a certificate is fragile and does not return an error status code, nor easy to parse data on stdout.
+-- therefore, test for valid contents in the cert-file
+test_cmd = "openssl x509 -noout -subject -in " .. CLIENT_CERT
+out = backtick(test_cmd)
+like(out[1], "^subject= /CN=" .. CN, "certificate is valid")
+
+-- now test that certificate at the site
+local response = call({url = "https://localhost:7443/secure/index.html",
+			 verify = { "peer" },
+			 cafile = SERVER_CERT,
+			 certificate = CLIENT_CERT,
+			 key         = CLIENT_KEY,
+		      })
+is(response.code, 200, "server grants access to authenticated part with our correct certificate and private key")
