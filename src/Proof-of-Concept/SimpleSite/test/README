@@ -3,22 +3,24 @@ Requires:
 Mac OSX
 ports:
 OpenResty 1.x:	port install openresty
-luarocks:  	port install luarocks
-libev:		port install libev
-cmake:		port install cmake
+#luarocks:  	port install luarocks
+#libev:		port install libev
+#cmake:		port install cmake
 
 lua-testmore:  luarocks install lua-testmore
 
-lua-handlers:	luarocks install lua-ev
-		#luarocks install nixio
-		luarocks install lua-http-parser
-		luarocks install lua-socket
 
-luarocks install "https://github.com/brimworks/lua-ev/raw/master/rockspec/lua-ev-scm-1.rockspec"
-luarocks install "https://github.com/Neopallium/nixio/raw/master/nixio-scm-0.rockspec"
-luarocks install "https://github.com/Neopallium/lua-handlers/raw/master/lua-handler-scm-0.rockspec"
+forget about these for a while
+#lua-handlers:	luarocks install lua-ev
+#		#luarocks install nixio
+#		luarocks install lua-http-parser
+#		luarocks install lua-socket
 
-ua-handler-http:
-luarocks install "https://github.com/brimworks/lua-http-parser/raw/master/lua-http-parser-scm-0.rockspec"
-luarocks install "https://github.com/Neopallium/lua-handlers/raw/master/lua-handler-http-scm-0.rockspec"
+#luarocks install "https://github.com/brimworks/lua-ev/raw/master/rockspec/lua-ev-scm-1.rockspec"
+#luarocks install "https://github.com/Neopallium/nixio/raw/master/nixio-scm-0.rockspec"
+#luarocks install "https://github.com/Neopallium/lua-handlers/raw/master/lua-handler-scm-0.rockspec"
+
+#ua-handler-http:
+#luarocks install "https://github.com/brimworks/lua-http-parser/raw/master/lua-http-parser-scm-0.rockspec"
+#luarocks install "https://github.com/Neopallium/lua-handlers/raw/master/lua-handler-http-scm-0.rockspec"
 

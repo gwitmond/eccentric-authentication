@@ -36,12 +36,14 @@ clean:
 # Nginx control
 ######################################
 
+NGINX=/Users/guido/eccentric-authentication/bin/nginx/sbin/nginx
+
 start:
 	mkdir -p temp/logs
-	/usr/local/openresty/nginx/sbin/nginx -p `pwd`/temp/ -c ../nginx.conf
+	$(NGINX) -p `pwd`/temp/ -c ../nginx.conf
 
 reload:
-	/usr/local/openresty/nginx/sbin/nginx -p `pwd`/temp/ -c ../nginx.conf -s reload
+	$(NGINX) -p `pwd`/temp/ -c ../nginx.conf -s reload
 
 stop:
-	/usr/local/openresty/nginx/sbin/nginx -p `pwd`/temp/ -c ../nginx.conf -s stop
+	$(NGINX) -p `pwd`/temp/ -c ../nginx.conf -s stop

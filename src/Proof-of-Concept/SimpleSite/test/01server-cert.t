@@ -8,7 +8,7 @@ SERVER_CERT = "../server-cert.pem"
 SERVER_KEY  = "../server-key.pem"
 
 -- call (url) and capture the body.
-function call (url) 
+function call (url, post_body) 
    local result_table = {}
    local def = { sink = ltn12.sink.table(result_table), }
    -- Default settings
@@ -16,7 +16,7 @@ function call (url)
       url[k] = url[k] or v
    end
 
-   local res, code, headers, status = https.request(url)
+   local res, code, headers, status = https.request(url, post_body)
    return { 
       res = res,
       body = table.concat(result_table),
