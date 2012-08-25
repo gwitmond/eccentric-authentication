@@ -248,25 +248,42 @@ X509* csr_sign(EVP_PKEY* cakey, X509* cacert, X509_REQ* csr) {
 /*   return 0; */
 /* } */
 
-/* LUA_FUNCTION(l_parse_csr) { */
-/*   fprintf(stderr, "This is the csr_read function talking from C\nIt calls read_csr:do_read_csr(), please cat in a csr.pem file\n"); */
+LUA_FUNCTION(l_parse_csr) {
+  // read a pem-encoded csr string and return a table containing:
+  // { CN = "username", O = "organisation", ... }
   
-/*   size_t csr_length = 0; */
-/*   const char* csr_str = luaL_checklstring(L, 1, &csr_length); */
-/*   BIO* csr_bio = BIO_new_mem_buf((void*) csr_str, csr_length); */
-/*   X509_REQ* csr = PEM_read_bio_X509_REQ(csr_bio, NULL, NULL, NULL); */
+  size_t csr_length = 0;
+  const char* csr_str = luaL_checklstring(L, 1, &csr_length);
+  BIO* csr_bio = BIO_new_mem_buf((void*) csr_str, csr_length);
+  X509_REQ* csr = PEM_read_bio_X509_REQ(csr_bio, NULL, NULL, NULL);
+  if (! csr) {
+    BIO *err = BIO_new(BIO_s_mem());
+    BIO_puts(err, "Error decoding certificate signing request\n");
+    ERR_print_errors(err);
+    char* err_str = NULL;
+    long err_str_size = BIO_get_mem_data(err, &err_str);
+    luaL_error(L, err_str);
+  }
 
-/*   // just print it.. */
-/*   X509_NAME* subject = X509_REQ_get_subject_name(csr); */
-/* # define SIZE 128 */
-/*   char buff[SIZE]; */
-/*   memset(&buff, 0, SIZE); */
-/*   char *b = X509_NAME_oneline(subject, buff, SIZE-1); */
-/*   printf("%s\n", b); */
+  lua_newtable(L);
+  X509_NAME* subject = X509_REQ_get_subject_name(csr);
+  for (int i=0; i < X509_NAME_entry_count(subject); i++) {
+    X509_NAME_ENTRY* entry = X509_NAME_get_entry(subject, i);
+    ASN1_OBJECT* object = X509_NAME_ENTRY_get_object(entry);
+    int nid = OBJ_obj2nid(object);
+    const char* key = OBJ_nid2sn(nid);
 
-/*   // ignore return value to lua. TODO: return it somehow (table/userdata) to lua. */
-/*   return 0; */
-/* } */
+    ASN1_STRING* asn1 = X509_NAME_ENTRY_get_data(entry);
+    unsigned char *value = NULL;
+    int len = ASN1_STRING_to_UTF8(&value, asn1);
+    
+    lua_pushstring(L, key);
+    lua_pushstring(L, (char*) value);  //, len);
+    lua_settable(L, -3);
+  }
+  return 1; // return the table
+}
+
 
 LUA_FUNCTION(l_sign_csr) {
   // load cakey from arg[1]
@@ -342,13 +359,13 @@ LUA_FUNCTION(l_sign_csr) {
     return 2;
   } else {
     luaL_error(L, "error signing certificate"); // TODO: return bio-err from the C-function
-    return 2;
+    /* NOTREACHED */ return 0;
   }
 }
 
 // The function table
 static const struct luaL_reg ecca_functions [] = {
-  // {"csr_read", l_csr_read},
+  {"parse_csr", l_parse_csr},
   {"sign_csr", l_sign_csr},
   {NULL, NULL}
 };

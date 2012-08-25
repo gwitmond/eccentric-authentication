@@ -1,82 +1,79 @@
 #!/usr/bin/env lua
 
+package.cpath = "ca-lib/?.so;;" -- TODO: set cpath in nginx.conf
+require 'ecca_lib'
+
 -- these should be set at nginx.conf level.
 SUBCA="/Users/guido/eccentric-authentication/src/Proof-of-Concept/localCA/subCA"
-SUBCA_CONFIG=SUBCA .. "/openssl-subca.cnf"
+CACERT= SUBCA .. "/subcacert.pem"
+CAKEY=  SUBCA .. "/private/subcakey.pem"
 
-local openssl = require 'openssl'
+-- Main
+-- Register a username, if unique
 
--- utility to execute command with input and collect stdout
-function backtick(cmd, input)
-   io.stderr:write("backtick command: ", cmd, "\ninput is: ", (input or "(nil)"), "\n")
-   local t = {}
-   local pipe = assert(io.popen(cmd, "r+"))
-   if input then
-      pipe:write(input)
-      --pipe:flush()
-   end
-   local line = pipe:read("*line")
-   while line do
-      table.insert(t, line)
-      line = pipe:read("*line")
-   end
-   pipe:close()
-   io.stderr:write("backtick read: " .. table.concat(t) .. "\n")
-   return t
-end
-
--- parse_dn("/CN=name/L=place") -> { CN = "name", L = "place" }
--- note, TODO: parsing ends on embedded / characters in a field.
-function parse_dn(line)
-   local fields = {}
-   for name, value in string.gfind(line, "/([A-Z]+)=([^/]+)") do
-      fields[name] = value
-   end
-   return fields
-end
-
--- Main 
--- Register a username, if still unique.
-
-function main() 
+function register() 
    ngx.req.read_body()
    local args = ngx.req.get_post_args()
    local csr = args.csr
-   
-   -- retrieve the username from the csr,
-   local req_cmd = "openssl req -subject -noout"
-   local dn = backtick(req_cmd, csr)
-   local fields = parse_dn(dn[1])  -- only parse first line.
-   local cn = fields.CN
-   
-   -- validate uniqueness, before creating a certificate 
-   -- as lookup is cheaper than generating it first
+   if csr == nil then
+      ngx.status = ngx.HTTP_BAD_REQUEST -- 400
+      ngx.say("There is no csr attribute in the post parameters.")
+      ngx.exit()
+   end
 
+   -- retrieve the username from the csr,
+   local csr_data = ecca_lib.parse_csr(csr)
+   local cn = csr_data.CN
+   if cn == nil then
+      ngx.status = ngx.HTTP_BAD_REQUEST -- 400
+      ngx.say("There is no CN in the certificate. Please set -subj field (correctly).")
+      ngx.exit(0)
+   end
+
+   -- validate uniqueness, before creating a certificate
    local res = ngx.location.capture("/check-nickname-available", {args = {nickname = cn}})
    if res.status == 200 then
-      ngx.say("Username: ", cn, " is already taken, please choose another.")
-      ngx.exit(200)
+      ngx.status = ngx.HTTP_FORBIDDEN -- 403
+      ngx.say("Username: ", cn, " is already taken, please choose another.", res.body)
+      ngx.exit(0)
 
-   elseif res.status == 404 then  -- 404 means cn is available, proceed to create a certificate
-      -- write csr to file for openssl ca (it does not listen to stdin)
-      local csr_file = os.tmpname()
-      local fh = io.open(csr_file, "w")
-      fh:write(csr)
-      fh:close()
-      
-      -- generate certificate,
-      local ca_cmd = "openssl ca -config " .. SUBCA_CONFIG  .. " -batch -in " .. csr_file
-      local cert = backtick(ca_cmd, csr)
-      
-      local res2 = ngx.location.capture("/memcacheDB-cn", { method=ngx.HTTP_POST, 
-					   args = { cmd = set,
-					      key   = cn,
-					      body = table.concat(cert)}})
-      io.stderr:write("memcache store gave:", res2.status, "\n", res2.body, "\n")
-      -- encode it for the specific browser (todo: is that needed?)
-      ngx.say("your CN: <code>", cn, "</code> is registered.<p>please see the cert:\n<br><pre>", table.concat(cert, "\n"), "</pre>")
-      ngx.exit(200)
+   elseif res.status == 404 then  -- 404 means cn is available, proceed to create a certificate      
+      -- read cakey
+      local k = assert(io.open(CAKEY, "r"))
+      local cakey = k:read("*all")
+      k:close()
+
+      -- read cacert
+      local c = assert(io.open(CACERT, "r"))
+      local cacert = c:read("*all")
+      c:close()
+
+      -- generate certificate!
+      cl_cert, text = ecca_lib.sign_csr(cakey, cacert, csr)
+   
+      if cl_cert then
+	 -- store the pem-cert under the CN
+	 local res2 = ngx.location.capture("/memcacheDB-cn", { 
+					      method = ngx.HTTP_POST, body = cl_cert,
+					      args = { 
+						 key   = cn,
+					      }
+					   })
+	 -- TODO: handle errors from memcache store.
+	 io.stderr:write("certificate created. Storing gave: ", res2.status, res2.body)
+
+	 -- TODO: encode it for the specific browser (is that needed?)
+	 ngx.status = res2.status; -- we return errorcode of memcacheDB: 201, 404...
+	 ngx.say("<pre>", text, "\n", cl_cert, "</pre>\nstored or not: ", res2.status ," ", res2.body)
+	 ngx.exit(0)
+      else
+	 -- Error creating certificate
+	 ngx.status = 500
+	 nginx.say("Certification failed ", text)
+	 ngx.exit(0)
+      end
    end
 end
 
-main()
+-- Just call it.
+register()

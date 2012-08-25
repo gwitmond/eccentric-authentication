@@ -148,7 +148,7 @@ nZg=
 -----END CERTIFICATE-----
 ]]
 
-plan(4)
+plan(12)
 
 -- require 'ecca_lib';
 if not require_ok 'ecca_lib' then
