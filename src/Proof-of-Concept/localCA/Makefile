@@ -1,11 +1,11 @@
 # Makefile to create the nested localCA
 
 ## Root CA configs
-DIR=rootCA
-CONFIG=$(DIR)/openssl-rootca.cnf
+ROOT=rootCA
+CONFIG=$(ROOT)/openssl-rootca.cnf
 ## CAKEY and CACERT must match the values in CONFIG
-CAKEY=$(DIR)/private/cakey.pem
-CACERT=$(DIR)/cacert.pem
+CAKEY=$(ROOT)/private/cakey.pem
+CACERT=$(ROOT)/cacert.pem
 
 ## Sub CA configs
 SUB=subCA
@@ -15,7 +15,7 @@ SUBCAKEY=$(SUB)/private/subcakey.pem
 SUBCACERT=$(SUB)/subcacert.pem
 
 ## Chained certificate
-CHAINED=$(DIR)/../chained.pem
+CHAINED=$(SUB)/chained.pem
 
 
 ## create the rootCA structure. 
@@ -29,17 +29,17 @@ setup: $(CACERT) $(SUBCACERT) $(CHAINED)
 # create a self signed rootCA certificate
 .root_dir:
 	@echo creating root CA
-	mkdir -p $(DIR)
-	mkdir -p $(DIR)/certs  $(DIR)/crl  $(DIR)/newcerts  $(DIR)/private
-	touch $(DIR)/index.txt
-	echo '01' > $(DIR)/crlnumber
+	mkdir -p $(ROOT)
+	mkdir -p $(ROOT)/certs  $(ROOT)/crl  $(ROOT)/newcerts  $(ROOT)/private
+	touch $(ROOT)/index.txt
+	echo '01' > $(ROOT)/crlnumber
 	cp default/openssl-rootca.cnf  $(CONFIG)
 	touch .root_dir
 
 $(CAKEY): .root_dir
 	@echo creating root private key: $(CAKEY)
 	openssl genrsa -out $(CAKEY) 1024 
-# increate to 4096 bits for production.
+# increase to 4096 bits for production.
 
 $(CACERT): $(CAKEY)
 	@echo creating self signing request
@@ -48,7 +48,7 @@ $(CACERT): $(CAKEY)
 	rm root-req.csr
 
 clean-root:
-	-rm -r $(DIR) .root_dir
+	-rm -r $(ROOT) .root_dir
 
 
 
@@ -70,15 +70,13 @@ clean-root:
 $(SUBCAKEY): .sub_dir
 	@echo creating sub private key: $(SUBCAKEY)
 	openssl genrsa -out $(SUBCAKEY) 1024 
-# increate to 2048/3072 bits for production.
+# increase to 2048/3072 bits for production.
 
 $(SUBCACERT): $(CACERT) $(SUBCAKEY)
 	@echo creating signing request to get sub signed by root
 	openssl req -config $(SUBCONFIG) -new -key $(SUBCAKEY) -out sub-req.csr
 	openssl ca  -config $(CONFIG)  -out $(SUBCACERT) -days 30 -keyfile $(CAKEY) -extensions v3_ca -batch -infiles sub-req.csr
 	rm sub-req.csr
-
-clean: clean-sub
 
 clean-sub:
 	-rm -r $(SUB) .sub_dir
@@ -90,3 +88,22 @@ clean-sub:
 
 $(CHAINED): $(SUBCACERT) $(CACERT)
 	cat $(SUBCACERT) $(CACERT) > $(CHAINED)
+
+
+#######################
+# testrun                #
+#######################
+
+# test in this order.
+# first test lua with the ecca_lib.so file
+# second, test the webserver nginx/memcacheDB combination
+# then test the whole system with register.lua/ecca_lib.so memcacheDB
+testrun: setup
+	$(MAKE) -C ecca_lib -f Makefile test
+	$(MAKE) -C web      -f Makefile start test
+	$(MAKE) -C test     -f Makefile test
+
+clean: 
+	$(MAKE) -C web      -f Makefile stop clean
+	$(MAKE) -C ecca_lib -f Makefile clean
+	$(MAKE) clean-sub clean-root

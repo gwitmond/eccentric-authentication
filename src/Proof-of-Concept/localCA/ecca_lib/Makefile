@@ -44,7 +44,6 @@ clean:
 	rm -f $T.so $(OBJS)
 
 
-test:	all
+test:	$T.so
 	lua 01-ecca_lib.t
 
-#lua -e "require 'ecca_lib'" -e 'ecca_lib.sign_csr()' < certificate-request.pem

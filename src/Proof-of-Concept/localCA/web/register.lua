@@ -1,6 +1,6 @@
 #!/usr/bin/env lua
 
-package.cpath = "ca-lib/?.so;;" -- TODO: set cpath in nginx.conf
+package.cpath = "../ecca_lib/?.so;;" -- TODO: set cpath in nginx.conf
 require 'ecca_lib'
 
 -- these should be set at nginx.conf level.
