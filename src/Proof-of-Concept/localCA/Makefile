@@ -64,6 +64,7 @@ clean-root:
 	mkdir -p $(SUB)
 	mkdir -p $(SUB)/certs  $(SUB)/crl  $(SUB)/newcerts  $(SUB)/private
 	touch $(SUB)/index.txt
+	echo '01' -> $(SUB)/serial
 	cp default/openssl-subca.cnf  $(SUBCONFIG)
 	touch .sub_dir
 
