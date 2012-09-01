@@ -3,11 +3,13 @@
 # This is mostly being used for generation of certificate requests.
 #
 
-# This definition stops the following lines choking if HOME isn't
-# defined.
+# This definition of HOME = . refers to the current working direcory at the time of
+# calling openssl. It should refer to directory _this_ config file is located. Too Bad.
 #HOME			= .
 #RANDFILE		= $ENV::HOME/.rnd
-CA_HOME			= /Users/guido/eccentric-authentication/src/Proof-of-Concept/localCA/subCA
+# the FULL_SUBCA_PAT[H] variablee must be set to basename of this openssl.cnf file to make sure
+# we get the right directory.
+CA_HOME			= FULL_SUBCA_PATH
 
 # Extra OBJECT IDENTIFIER info:
 #oid_file		= $ENV::HOME/.oid

@@ -1,4 +1,4 @@
-# Makefile to create the nested localCA
+# GNU Makefile to create the nested localCA
 
 ## Root CA configs
 ROOT=rootCA
@@ -34,6 +34,7 @@ setup: $(CACERT) $(SUBCACERT) $(CHAINED)
 	touch $(ROOT)/index.txt
 	echo '01' > $(ROOT)/crlnumber
 	cp default/openssl-rootca.cnf  $(CONFIG)
+	perl -pi -e "s{FULL_ROOTCA_PATH}{$(abspath $(ROOT))}" $(CONFIG)
 	touch .root_dir
 
 $(CAKEY): .root_dir
@@ -66,6 +67,7 @@ clean-root:
 	touch $(SUB)/index.txt
 	echo '01' -> $(SUB)/serial
 	cp default/openssl-subca.cnf  $(SUBCONFIG)
+	perl -pi -e s{FULL_SUBCA_PATH}{$(abspath $(SUB))} $(CONFIG)
 	touch .sub_dir
 
 $(SUBCAKEY): .sub_dir
