@@ -5,15 +5,9 @@ local https = require("ssl.https")
 
 plan(8)
 
--- utility to execute command with input and collect stdout
-function backtick(cmd, input)
-   local pipe = assert(io.popen(cmd, "r+"))
-   --io.stderr:write("backtick command: ", cmd, "\ninput is: ", (input or "(nil)"), "\n")
-   if input then 
-      pipe:write(input)
-      pipe:flush()
-   end
-
+-- utility to execute command and collect stdout
+function backtick(cmd)
+   local pipe = assert(io.popen(cmd, "r")) -- "r+" is 5.2
    local result = pipe:read("*all")
    pipe:close()
    return result

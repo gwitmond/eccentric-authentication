@@ -30,14 +30,9 @@ function call (url, post_body)
 end
 
 
--- utility to execute command with input and collect stdout
-function backtick(cmd, input)
-   local pipe = assert(io.popen(cmd, "r+"))
-   if input then 
-      pipe:write(input)
-      pipe:flush()
-   end
-
+-- utility to execute command and collect stdout
+function backtick(cmd)
+   local pipe = assert(io.popen(cmd, "r"))
    local result = pipe:read("*line")
    pipe:close()
    return result

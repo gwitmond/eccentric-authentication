@@ -15,7 +15,7 @@ setup: .demo  $(KEY)  $(CERT)
 .demo:
 	@echo creating demoCA
 	mkdir -p $(DEMO)
-	mkdir -p $(DEMO)/certs  $(DEMO)/crl  $(DEMO)/newcerts  $(DEMOE)/private
+	mkdir -p $(DEMO)/certs  $(DEMO)/crl  $(DEMO)/newcerts  $(DEMO)/private
 	touch $(DEMO)/index.txt
 	echo '01' > $(DEMO)/crlnumber
 	touch .demo
@@ -35,7 +35,7 @@ clean:
 # Nginx and MemcacheDB control
 ######################################
 
-NGINX=/Users/guido/eccentric-authentication/bin/nginx/sbin/nginx
+NGINX=/usr/sbin/nginx
 MEMCPID = temp/memcachedb.pid
 NGXPID = temp/logs/nginx.pid
 

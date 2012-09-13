@@ -38,9 +38,10 @@ clean: stop
 # Nginx control
 ######################################
 
-NGINX=/Users/guido/eccentric-authentication/bin/nginx/sbin/nginx
-NGXPID=temp/nginx.pid
-start:
+NGINX=/usr/sbin/nginx
+NGXPID=temp/logs/nginx.pid
+
+start:	$(CHAINED)
 	mkdir -p temp/logs
 	test -f $(NGXPID) || $(NGINX) -p `pwd`/temp/ -c ../nginx.conf
 
@@ -63,5 +64,6 @@ $(CHAINED):
 # testrun
 ######################################
 
-testrun: $(CHAINED) setup start
+testrun: setup $(CHAINED)
 	$(MAKE) -C test -f Makefile test
+

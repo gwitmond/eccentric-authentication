@@ -150,8 +150,8 @@ nZg=
 
 plan(12)
 
--- require 'ecca_lib';
-if not require_ok 'ecca_lib' then
+local ecca_lib = require 'ecca_lib';
+if not ecca_lib then
     skip_all "no ecca_lib"
 end
 

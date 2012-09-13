@@ -25,13 +25,6 @@
 
 
 //************************
-// Configuration
-// for now, in C-land; TODO: take configs to lua-land or better, nginx.conf env settins.
-char* CAkey  = "/Users/guido/cc/subcakey.pem";
-char* CAcert = "/Users/guido/cc/subcacert.pem";
-
-
-//************************
 // Load CAkey (no password may be set)
 EVP_PKEY* load_key_fh(FILE* fh) {
   EVP_PKEY *pkey = NULL;
@@ -107,7 +100,8 @@ static int do_sign_init(BIO *err, EVP_MD_CTX *ctx, EVP_PKEY *pkey,
   EVP_MD_CTX_init(ctx);
   if (!EVP_DigestSignInit(ctx, &pkctx, md, NULL, pkey))
     return 0;
-  for (int i = 0; i < sk_OPENSSL_STRING_num(sigopts); i++)
+  int i=0;
+  for (i = 0; i < sk_OPENSSL_STRING_num(sigopts); i++)
     {
       char *sigopt = sk_OPENSSL_STRING_value(sigopts, i);
       if (pkey_ctrl_string(pkctx, sigopt) <= 0)
@@ -228,30 +222,10 @@ X509* csr_sign(EVP_PKEY* cakey, X509* cacert, X509_REQ* csr) {
 
 #define LUA_FUNCTION(X) static int X (lua_State*L)
 
-/* LUA_FUNCTION(l_parse_cakey) { */
-/*   fprintf(stderr, "This is the csr_read function talking from C\nIt calls read_csr:do_read_csr(), please cat in a csr.pem file\n"); */
-  
-/*   size_t str_length = 0; */
-/*   const char* str = luaL_checklstring(L, 1, &str_length); */
-/*   BIO* bio = BIO_new_mem_buf((void*) str, str_length); */
-/*   EVP_PKEY* pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL); */
-
-/*   // just print it.. */
-/*   X509_NAME* subject = X509_REQ_get_subject_name(csr); */
-/* # define SIZE 128 */
-/*   char buff[SIZE]; */
-/*   memset(&buff, 0, SIZE); */
-/*   char *b = X509_NAME_oneline(subject, buff, SIZE-1); */
-/*   printf("%s\n", b); */
-
-/*   // ignore return value to lua. TODO: return it somehow (table/userdata) to lua. */
-/*   return 0; */
-/* } */
-
 LUA_FUNCTION(l_parse_csr) {
   // read a pem-encoded csr string and return a table containing:
   // { CN = "username", O = "organisation", ... }
-  
+
   size_t csr_length = 0;
   const char* csr_str = luaL_checklstring(L, 1, &csr_length);
   BIO* csr_bio = BIO_new_mem_buf((void*) csr_str, csr_length);
@@ -267,7 +241,8 @@ LUA_FUNCTION(l_parse_csr) {
 
   lua_newtable(L);
   X509_NAME* subject = X509_REQ_get_subject_name(csr);
-  for (int i=0; i < X509_NAME_entry_count(subject); i++) {
+  int i=0;
+  for (i=0; i < X509_NAME_entry_count(subject); i++) {
     X509_NAME_ENTRY* entry = X509_NAME_get_entry(subject, i);
     ASN1_OBJECT* object = X509_NAME_ENTRY_get_object(entry);
     int nid = OBJ_obj2nid(object);
@@ -364,7 +339,7 @@ LUA_FUNCTION(l_sign_csr) {
 }
 
 // The function table
-static const struct luaL_reg ecca_functions [] = {
+static const struct luaL_Reg ecca_functions [] = {
   {"parse_csr", l_parse_csr},
   {"sign_csr", l_sign_csr},
   {NULL, NULL}
@@ -374,5 +349,6 @@ static const struct luaL_reg ecca_functions [] = {
 // Lua require("module") expects: luaopen_<module>
 int luaopen_ecca_lib(lua_State *L) {
   luaL_register(L, "ecca_lib", ecca_functions);
+  //luaL_newlib(L, ecca_functions); // Lua 5.2
   return 1;
 }

@@ -8,7 +8,7 @@
 # calling openssl. It should refer to directory _this_ config file is located. Too Bad.
 #HOME			= .
 #RANDFILE		= $ENV::HOME/.rnd
-# the FULL_ROOTCA_PAT[H] variablee must be set to basename of this openssl.cnf file to make sure
+# the FULL_ROOTCA_PAT[H] variable must be set to basename of this openssl.cnf file to make sure
 # we get the right directory.
 CA_HOME			= FULL_ROOTCA_PATH
 

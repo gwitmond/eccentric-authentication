@@ -17,9 +17,15 @@ Directory structure:
 - client: the code that proofs the concept.
 
 Prerequisites:
-- make;
-- OpenSSL;
-- nginx;
+- make;      (debian: binutils, make)
+- lua        (debian: lua5.1  liblua5.1-dev)
+- OpenSSL    (or debian: libssl-dev)
+- openresty  (or debian: nginx-databases)
+
+for testing, prerequisites:
+- luarocks   apt-get install luarocks
+			 lua5.2 /usr/bin/luarocks install lua-testmore
+			 lua5.2 /usr/bin/luarocks install luasec     (includes luasocket)
 
 Setup: 
 1.  run <make setup> to setup a CA;
