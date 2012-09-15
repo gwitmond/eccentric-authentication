@@ -46,6 +46,16 @@ itReLIVt6XPvhNIeNLmjylRIfBZuAgCSjh9INRgrCf6EBkU/lPxIr5+8ziVcvIHt
 -----END CERTIFICATE REQUEST-----
 ]]
 
+-- values in above CSR
+local cn="username"
+local pubkey=[[
+-----BEGIN PUBLIC KEY-----
+MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDUtbhiPXktxZwdHIdz+PkRQHjw
+NTxNxL9sT1GG4w3k/qfRjpqzKnqnYOYUnFDhMHgfosaVNa4YIEEMJIiMB24bh9iJ
+h8Wpx1FbFPuF/TRwbzmpsCEUOl0seCY1nkOzoOyhX16mvT82bm/gPGAETsrpnFXU
+510r3fjL2uDvsuRfuwIDAQAB
+-----END PUBLIC KEY-----
+]]
 
 local cacert = [[
 Certificate:
@@ -148,12 +158,20 @@ nZg=
 -----END CERTIFICATE-----
 ]]
 
-plan(12)
+local spkac = [[
+MIIBOjCBpDCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEApfqLdp5Pffzs/RDDSThePsFcVi0kc5ciH7bmU348tc2eWUAZ6IKZBmHKq7YcArNADh9C9Rh5B7kpjxjzV2Ed6L/5jdE02ptiOQjWudEdv0S4kbudBu4MpWr1Lxyj5Xnk48zqwX3mYrIIpn2LEwdNCwtRo3R4fceXzLJZEcnQ6p8CAwEAARYAMA0GCSqGSIb3DQEBBAUAA4GBAHJZSdCF5yojbMV9lofr7J0aNsesHDhkA11YVRzojIRx9tZ6SuiOacHEXP9DgZyeVcWxwTvvE/GX2nAvFeGzQsZS83ZGsc0xlOb6C/jK5FbrLoNYT+nH0tE0qc8rXwM1gj4TcMh1gdeTBrcYbKa4vdYfwltG4jbAA8I+hGFbLXSH
+]]
+
+plan(37)
 
 local ecca_lib = require 'ecca_lib';
 if not ecca_lib then
     skip_all "no ecca_lib"
 end
+
+--------------------------------
+-- Test the SIGN_CSR function
+--------------------------------
 
 -- Check to see that it wants parameters
 error_like(ecca_lib.sign_csr, {nil}, "bad argument #1", "Must have a private key as first parameter")
@@ -183,9 +201,115 @@ error_like(ecca_lib.sign_csr, {cakey, cacert, nil}, "bad argument #3", "Cakey an
 -- test wrong cacert and cakey combination
 error_like(ecca_lib.sign_csr, {cakey, wrong_cacert, nil}, "CA certificate and CA private key do not match!", "Verify that Cakey and Cacert do not match.")
 
+-- test correct operation
 cert, text = ecca_lib.sign_csr(cakey, cacert, csr)
 like(cert, "-----BEGIN CERTIFICATE-----", "Certificate is created")
 like(text, "Issuer: C=NL, O=Witmond Secure Software, OU=Witmond Eccentric CA, CN=sub1.ecca.witmond.nl", "Certificate is signed with correct CA")
 like(text, "Subject: CN=username", "Certificate has correct subject")
 
 --print("cert is: ", text, cert)
+
+
+----------------------------------
+-- Test the SIGN_CN_KEY function
+----------------------------------
+
+-- Check to see that it wants parameters
+error_like(ecca_lib.sign_cn_key, {nil}, "bad argument #1", "Must have a private key as first parameter")
+
+-- Check parameter parsing for cakey
+error_like(ecca_lib.sign_csr, {"not a pem private key"}, "Error decoding private key", "Must have a valid pem encoded private key as first parameter")
+
+error_like(ecca_lib.sign_cn_key, {[[
+-----BEGIN RSA PRIVATE KEY-----
+MIICXgIBAAKBgQCelWZByPQHb/pVW/Fp0
+]]}, "Error decoding private key", "Must have a complete and valid pem encoded private key as first parameter")
+
+-- test valid cakey. It should complain about arg 2.
+error_like(ecca_lib.sign_cn_key, {cakey, nil}, "bad argument #2", "Cakey is valid.")
+
+-- Test parameter parsing for cacert
+error_like(ecca_lib.sign_cn_key, {cakey, "not a pem certificate"}, "Error decoding certificate", "Must have a valid pem encoded certificate as second parameter")
+
+error_like(ecca_lib.sign_cn_key, {cakey, [[
+-----BEGIN CERTIFICATE-----
+MIICozCCAgygAwIBAgIJAKheTApDkl
+]]}, "Error decoding certificate", "Must have a complete and valid pem encoded certificate as second parameter")
+
+-- test valid cakey and cacert. It should complain about arg 3.
+-- this also tests the missing cn parameter
+error_like(ecca_lib.sign_cn_key, {cakey, cacert, nil, nil}, "bad argument #3", "Cakey and Cacert match")
+
+-- test missing pubkey. It should complain about arg 4.
+error_like(ecca_lib.sign_cn_key, {cakey, cacert, cn, nil}, "bad argument #4", "Missing pubkey")
+
+-- test invalid pubkey
+error_like(ecca_lib.sign_cn_key, {cakey, cacert, cn, [[
+-----BEGIN PUBLIC KEY-----
+MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQ
+]]
+}, "Error decoding public key", "Reject invalidly encoded public key")
+
+
+-- test wrong cacert and cakey combination
+error_like(ecca_lib.sign_cn_key, {cakey, wrong_cacert, nil, nil}, "CA certificate and CA private key do not match!", "Verify that Cakey and Cacert do not match.")
+
+-- test correct operation
+cert, text = ecca_lib.sign_cn_key(cakey, cacert, cn, pubkey)
+like(cert, "-----BEGIN CERTIFICATE-----", "Certificate is created")
+like(text, "Issuer: C=NL, O=Witmond Secure Software, OU=Witmond Eccentric CA, CN=sub1.ecca.witmond.nl", "Certificate is signed with correct CA")
+like(text, "Subject: CN=username", "Certificate has correct subject")
+
+--print("cert is: ", text, cert)
+
+------------------------------------
+-- Test the SIGN_CN_SPKAC function
+------------------------------------
+
+-- Check to see that it wants parameters
+error_like(ecca_lib.sign_cn_spkac, {nil}, "bad argument #1", "Must have a private key as first parameter")
+
+-- Check parameter parsing for cakey
+error_like(ecca_lib.sign_cn_spkac, {"not a pem private key"}, "Error decoding private key", "Must have a valid pem encoded private key as first parameter")
+
+error_like(ecca_lib.sign_cn_spkac, {[[
+-----BEGIN RSA PRIVATE KEY-----
+MIICXgIBAAKBgQCelWZByPQHb/pVW/Fp0
+]]}, "Error decoding private key", "Must have a complete and valid pem encoded private key as first parameter")
+
+-- test valid cakey. It should complain about arg 2.
+error_like(ecca_lib.sign_cn_spkac, {cakey, nil}, "bad argument #2", "Cakey is valid.")
+
+-- Test parameter parsing for cacert
+error_like(ecca_lib.sign_cn_spkac, {cakey, "not a pem certificate"}, "Error decoding certificate", "Must have a valid pem encoded certificate as second parameter")
+
+error_like(ecca_lib.sign_cn_spkac, {cakey, [[
+-----BEGIN CERTIFICATE-----
+MIICozCCAgygAwIBAgIJAKheTApDkl
+]]}, "Error decoding certificate", "Must have a complete and valid pem encoded certificate as second parameter")
+
+-- test valid cakey and cacert. It should complain about arg 3.
+-- this also tests the missing cn parameter
+error_like(ecca_lib.sign_cn_spkac, {cakey, cacert, nil, nil}, "bad argument #3", "Cakey and Cacert match")
+
+-- test missing spkac. It should complain about arg 4.
+error_like(ecca_lib.sign_cn_spkac, {cakey, cacert, cn, nil}, "bad argument #4", "Missing spkac")
+
+-- test invalid spkac
+error_like(ecca_lib.sign_cn_spkac, {cakey, cacert, cn, [[
+MIIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQ
+]]
+}, "Cannot decode Public Key data. Please provide a valid SPKAC structure.", "Reject invalid encoded spkac structure")
+
+
+-- test wrong cacert and cakey combination
+error_like(ecca_lib.sign_cn_spkac, {cakey, wrong_cacert, nil, nil}, "CA certificate and CA private key do not match!", "Verify that Cakey and Cacert do not match.")
+
+-- test correct operation
+cert, text = ecca_lib.sign_cn_spkac(cakey, cacert, cn, spkac)
+like(cert, "-----BEGIN CERTIFICATE-----", "Certificate is created")
+like(text, "Issuer: C=NL, O=Witmond Secure Software, OU=Witmond Eccentric CA, CN=sub1.ecca.witmond.nl", "Certificate is signed with correct CA")
+like(text, "Subject: CN=username", "Certificate has correct subject")
+
+--print("cert is: ", text, cert)
+

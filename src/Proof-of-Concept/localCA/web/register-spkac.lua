@@ -11,25 +11,28 @@ CAKEY =assert(os.getenv("CAKEY"),  "Missing CAKEY configuration parameter")
 -- Main
 -- Register a username, if unique
 
-function register() 
+function register_spkac() 
    ngx.req.read_body()
    local args = ngx.req.get_post_args()
-   local csr = args.csr
-   if csr == nil then
-      ngx.status = ngx.HTTP_BAD_REQUEST -- 400
-      ngx.say("There is no CSR! Please specify one.")
-      ngx.exit(0)
-   end
+   local cn = args.cn
+   local spkac = args.spkac
 
-   -- retrieve the username from the csr,
-   local csr_data = ecca_lib.parse_csr(csr)
-   local cn = csr_data.CN
+   -- primitive input validation
    if cn == nil then
       ngx.status = ngx.HTTP_BAD_REQUEST -- 400
-      ngx.say("There is no CN in the certificate. Please set -subj field (correctly).")
+      ngx.say("There is no username! Please specify one.")
       ngx.exit(0)
    end
 
+   if spkac == nil then
+      ngx.status = ngx.HTTP_BAD_REQUEST -- 400
+      ngx.say("There is no Public Key given! Please generate one.")
+      ngx.exit(0)
+   end
+   -- change the line based layout from firefox into a single line for openssl parsing
+   spkac = string.gsub(spkac, "[\r\n]", "")
+
+   io.stderr:write("spkca is ", spkac)
    -- validate uniqueness, before creating a certificate
    local res = ngx.location.capture("/check-nickname-available", {args = {nickname = cn}})
    if res.status == 200 then
@@ -49,7 +52,7 @@ function register()
       c:close()
 
       -- generate certificate!
-      cl_cert, text = ecca_lib.sign_csr(cakey, cacert, csr)
+      cl_cert, text = ecca_lib.sign_cn_spkac(cakey, cacert, cn, spkac)
    
       if cl_cert then
 	 -- store the pem-cert under the CN
@@ -63,6 +66,7 @@ function register()
 	 io.stderr:write("certificate created. Storing gave: ", res2.status, res2.body)
 
 	 -- TODO: encode it for the specific browser (is that needed?)
+	 ngx.header["Content-Type"] = 'application/x-x509-user-cert'
 	 ngx.status = res2.status; -- we return errorcode of memcacheDB: 201, 404...
 	 ngx.say([[
 <html><head><title>Certified</title></head>
@@ -95,4 +99,4 @@ function register()
 end
 
 -- Just call it.
-register()
+register_spkac()
