@@ -3,7 +3,7 @@
  * The task of this code is to sign a certificate if the username is unique.
  * We will sanitise the username before signing it.
  *
- * Inspired by code from openssl-1.0.1c/apps/ca.c, demos.
+ * Inspired by code from openssl-1.0.1c/apps/ca.c, spkac.c and probably others.
  */
 
 // TODO: Focus on functionality to call it from Lua.
@@ -24,54 +24,7 @@
 #include <openssl/safestack.h>
 
 
-//************************
-// Load CAkey (no password may be set)
-EVP_PKEY* load_key_fh(FILE* fh) {
-  EVP_PKEY *pkey = NULL;
-  if (!PEM_read_PrivateKey(fh, &pkey, NULL, NULL)) {
-    ERR_print_errors_fp(stderr);
-    exit(1);
-  }
-  return pkey;
-}
-
-
-//************************
-// Load CAcert
-X509* load_cert_fh(FILE* fh) {
-  X509 *cert = NULL;
-  if (!PEM_read_X509(fh, &cert, NULL, NULL)) {
-    ERR_print_errors_fp(stderr);
-    exit(1);
-  }
-  return cert;
-}
-
-//************************
-// Load the certificate signing request we want to sign
-X509_REQ* load_csr_fh(FILE* fh) {
-  X509_REQ* csr = NULL;
-  if(!PEM_read_X509_REQ(fh, &csr, 0, NULL)) {
-    ERR_print_errors_fp(stderr);
-    exit(1);
-  }
-  return csr;
-
-  // show subject broken up in XX: value form
-  /* for (int i=0; i < X509_NAME_entry_count(subject_name); i++) { */
-  /*   X509_NAME_ENTRY* entry = X509_NAME_get_entry(subject_name, i); */
-  /*   ASN1_OBJECT* object = X509_NAME_ENTRY_get_object(entry); */
-  /*   int nid = OBJ_obj2nid(object); */
-  /*   const char* lngname = OBJ_nid2ln(nid); */
-
-  /*   ASN1_STRING* asn1 = X509_NAME_ENTRY_get_data(entry); */
-  /*   unsigned char *name = NULL; */
-  /*   int len = ASN1_STRING_to_UTF8(&name, asn1); */
-  /*   fprintf(stderr, "read CSR, subject is (%s): (%s)\n", lngname, name); */
-  /* } */
-}
-
-
+// From openSSL code
 //************************
 // split value in "key:val" and give it to EVP
 int pkey_ctrl_string(EVP_PKEY_CTX *ctx, char *value) {
@@ -149,70 +102,7 @@ int add_ext(X509 *cert, int nid, char *value)
 }
 
 
-//************************
-// Sign the request from a CSR
-X509* csr_sign(EVP_PKEY* cakey, X509* cacert, X509_REQ* csr) {
-  
-  // to show errors
-  BIO* err=BIO_new_fp(stderr, BIO_NOCLOSE);
-
-  // get the subject from the csr
-  X509_NAME* subject_name = X509_REQ_get_subject_name(csr);
-  // this is probably not i18n-safe, see X509_NAME_get_index_by_NID(3)
-  unsigned char cn[128];
-  int got_cn = X509_NAME_get_text_by_NID(subject_name, NID_commonName, (char*)cn, 127);
- 
-  // create an empty client certificate and populate it
-  X509* cl_cert = X509_new();
-  X509_CINF* ci = cl_cert->cert_info;
-
-  // Make it an X509 v3 certificate.
-  X509_set_version(cl_cert,2);
-
-  // set the commonName in the subject
-  X509_NAME* subj = X509_NAME_new();
-  X509_NAME_add_entry_by_NID(subj, NID_commonName, MBSTRING_ASC, cn, -1, -1, 0);
-  X509_set_subject_name(cl_cert, subj);
-
-  // set the client's public key
-  EVP_PKEY* pubk_tmp=X509_REQ_get_pubkey(csr);
-  X509_set_pubkey(cl_cert, pubk_tmp);
-  EVP_PKEY_free(pubk_tmp);
-
-  // Set serial randomly.
-  BIGNUM* serial = BN_new();
-  BN_rand(serial, 64, -1, 0);
-  BN_to_ASN1_INTEGER(serial, ci->serialNumber);
-
-  // set issuer with cacert-subject
-  X509_set_issuer_name(cl_cert, X509_get_subject_name(cacert));
-
-  // set validation times (TODO: set start at start of CA and end at end of CA for anonymyzing purpose)
-  X509_gmtime_adj(X509_get_notBefore(cl_cert),0); // start date is today
-  X509_time_adj_ex(X509_get_notAfter(cl_cert), 14, 0, NULL); // valid for 14 days
-  // ASN1_TIME_set_string(X509_get_notBefore(cl_cert), startdate);
-  // ASN1_TIME_set_string(X509_get_notAfter(cl_cert),  enddate);
-
-  // set extensions
-  add_ext(cl_cert, NID_basic_constraints, "critical,CA:FALSE");
-  add_ext(cl_cert, NID_key_usage, "nonRepudiation, digitalSignature, keyEncipherment");
-  add_ext(cl_cert, NID_ext_key_usage, "clientAuth");
-  add_ext(cl_cert, NID_subject_key_identifier, "hash");
-  add_ext(cl_cert, NID_authority_key_identifier, "keyid, issuer");
-
-  // set Netscape extensions
-  add_ext(cl_cert, NID_netscape_cert_type, "client, email");
-  add_ext(cl_cert, NID_netscape_comment, "Eccentric Authority CA");
-  
-
-  // sign it
-  int rv = do_X509_sign(err, cl_cert, cakey, EVP_sha1(), /* STACK_OF(OPENSSL_STRING) *sigopts */ NULL);
-
-
-
-  return cl_cert;
-}
-
+// Start of my work
 //************************
 // Sign the request from a CN and a Public Key
 X509* cn_key_sign(EVP_PKEY* cakey, X509* cacert, char* cn, EVP_PKEY* pubkey) {
@@ -262,9 +152,28 @@ X509* cn_key_sign(EVP_PKEY* cakey, X509* cacert, char* cn, EVP_PKEY* pubkey) {
   add_ext(cl_cert, NID_netscape_cert_type, "client, email");
   add_ext(cl_cert, NID_netscape_comment, "Eccentric Authority CA");
   
-
   // sign it
   int rv = do_X509_sign(err, cl_cert, cakey, EVP_sha1(), /* STACK_OF(OPENSSL_STRING) *sigopts */ NULL);
+  // TODO: error handling based on rv.
+
+  return cl_cert;
+}
+
+//************************
+// Sign the request from a CSR
+X509* csr_sign(EVP_PKEY* cakey, X509* cacert, X509_REQ* csr) {
+    // get the subject from the csr
+  X509_NAME* subject_name = X509_REQ_get_subject_name(csr);
+  // this is probably not i18n-safe, see X509_NAME_get_index_by_NID(3)
+  char cn[128];
+  int got_cn = X509_NAME_get_text_by_NID(subject_name, NID_commonName, (char*)cn, 127);
+ 
+  // get the client's public key from the csr
+  EVP_PKEY* pubkey=X509_REQ_get_pubkey(csr);
+
+  // have it signed
+  X509* cl_cert = cn_key_sign(cakey, cacert, cn, pubkey);
+  EVP_PKEY_free(pubkey);
 
   return cl_cert;
 }
@@ -274,22 +183,55 @@ X509* cn_key_sign(EVP_PKEY* cakey, X509* cacert, char* cn, EVP_PKEY* pubkey) {
 
 #define LUA_FUNCTION(X) static int X (lua_State* L)
 
+// send an error message upstream. Include the OpenSSL error.
+void send_error(lua_State* L, const char* message) {
+  BIO *err = BIO_new(BIO_s_mem());
+  BIO_puts(err, message);
+  ERR_print_errors(err);
+  char* err_str = NULL;
+  long err_str_size = BIO_get_mem_data(err, &err_str);
+  luaL_error(L, err_str);
+}
+
+// reader functions to mangle typecasting to and back from void correctly.
+// used in read_parameter() below.
+void* read_certificate(BIO* bio, void**in, void* cb, void* userdata) {
+  return (void*) PEM_read_bio_X509(bio, (X509**) in, (pem_password_cb*) cb, userdata);
+}
+
+void* read_csr(BIO* bio, void**in, void* cb, void* userdata) {
+  return (void*) PEM_read_bio_X509_REQ(bio, (X509_REQ**) in, (pem_password_cb*) cb, userdata);
+}
+
+void* read_private_key(BIO* bio, void**in, void* cb, void* userdata) {
+  return (void*) PEM_read_bio_PrivateKey(bio, (EVP_PKEY**) in, (pem_password_cb*) cb, userdata);
+}
+
+void* read_public_key(BIO* bio, void**in, void* cb, void* userdata) {
+  return (void*) PEM_read_bio_PUBKEY(bio, (EVP_PKEY**) in, (pem_password_cb*) cb, userdata);
+}
+
+// read_parameter: read and parse a lua parameter.
+// validate contents with the reader function calling OpenSSL PEM_read_bio_XXX
+void* read_parameter(lua_State* L, int index, void* (*reader)(BIO*, void**, void*, void*), char* error_msg) {
+  size_t str_len = 0;
+  const char* str = luaL_checklstring(L, index, &str_len);
+  BIO* bio = BIO_new_mem_buf((void*) str, str_len);
+  void* data = reader(bio, NULL, NULL, NULL);
+  BIO_free(bio);
+
+  if (! data) {
+    send_error(L, error_msg);
+  }
+  return data;
+}
+
+
 LUA_FUNCTION(l_parse_csr) {
   // read a pem-encoded csr string and return a table containing:
   // { CN = "username", O = "organisation", ... }
 
-  size_t csr_length = 0;
-  const char* csr_str = luaL_checklstring(L, 1, &csr_length);
-  BIO* csr_bio = BIO_new_mem_buf((void*) csr_str, csr_length);
-  X509_REQ* csr = PEM_read_bio_X509_REQ(csr_bio, NULL, NULL, NULL);
-  if (! csr) {
-    BIO *err = BIO_new(BIO_s_mem());
-    BIO_puts(err, "Error decoding certificate signing request\n");
-    ERR_print_errors(err);
-    char* err_str = NULL;
-    long err_str_size = BIO_get_mem_data(err, &err_str);
-    luaL_error(L, err_str);
-  }
+  X509_REQ* csr = read_parameter(L, 1, &read_csr, "Error decoding certificate signing request\n");
 
   lua_newtable(L);
   X509_NAME* subject = X509_REQ_get_subject_name(csr);
@@ -314,32 +256,10 @@ LUA_FUNCTION(l_parse_csr) {
 
 LUA_FUNCTION(l_sign_csr) {
   // load cakey from arg[1]
-  size_t cakey_length = 0;
-  const char* cakey_str = luaL_checklstring(L, 1, &cakey_length);
-  BIO* cakey_bio = BIO_new_mem_buf((void*) cakey_str, cakey_length);
-  EVP_PKEY* cakey = PEM_read_bio_PrivateKey(cakey_bio, NULL, NULL, NULL);
-  if (! cakey) {
-    BIO *err = BIO_new(BIO_s_mem());
-    BIO_puts(err, "Error decoding private key\n");
-    ERR_print_errors(err);
-    char* err_str = NULL;
-    long err_str_size = BIO_get_mem_data(err, &err_str);
-    luaL_error(L, err_str);
-  }
+  EVP_PKEY* cakey = read_parameter(L, 1, &read_private_key, "Error decoding private key\n");
   
   // load cacert from arg[2]
-  size_t cacert_length = 0;
-  const char* cacert_str = luaL_checklstring(L, 2, &cacert_length);
-  BIO* cacert_bio = BIO_new_mem_buf((void*) cacert_str, cacert_length);
-  X509* cacert = PEM_read_bio_X509(cacert_bio, NULL, NULL, NULL);
-  if (! cacert) {
-    BIO *err = BIO_new(BIO_s_mem());
-    BIO_puts(err, "Error decoding certificate\n");
-    ERR_print_errors(err);
-    char* err_str = NULL;
-    long err_str_size = BIO_get_mem_data(err, &err_str);
-    luaL_error(L, err_str);
-  }
+  X509* cacert = read_parameter(L, 2, &read_certificate, "Error decoding certificate\n");
   
   // Check that CAkey and CAcert match before proceeding. TODO: move this test to startup...
   if (!X509_check_private_key(cacert, cakey))
@@ -352,19 +272,7 @@ LUA_FUNCTION(l_sign_csr) {
     }
 
   // load CSR from arg[3]
-  size_t csr_length = 0;
-  const char* csr_str = luaL_checklstring(L, 3, &csr_length);
-  BIO* csr_bio = BIO_new_mem_buf((void*) csr_str, csr_length);
-  X509_REQ* csr = PEM_read_bio_X509_REQ(csr_bio, NULL, NULL, NULL);
-  if (! csr) {
-    BIO *err = BIO_new(BIO_s_mem());
-    BIO_puts(err, "Error decoding certificate signing request\n");
-    ERR_print_errors(err);
-    char* err_str = NULL;
-    long err_str_size = BIO_get_mem_data(err, &err_str);
-    luaL_error(L, err_str);
-  }
-
+  X509_REQ* csr = read_parameter(L, 3, &read_csr, "Error decoding certificate signing request\n");
 
   // sign it!
   X509* cl_cert = csr_sign(cakey, cacert, csr);
@@ -390,35 +298,14 @@ LUA_FUNCTION(l_sign_csr) {
   }
 }
 
-// send an error message upstream. Include the OpenSSL error.
-void send_error(lua_State* L, const char* message) {
-  BIO *err = BIO_new(BIO_s_mem());
-  BIO_puts(err, message);
-  ERR_print_errors(err);
-  char* err_str = NULL;
-  long err_str_size = BIO_get_mem_data(err, &err_str);
-  luaL_error(L, err_str);
-}
-
 
 LUA_FUNCTION(l_sign_cn_key) {
   // load cakey from arg[1]
-  size_t cakey_length = 0;
-  const char* cakey_str = luaL_checklstring(L, 1, &cakey_length);
-  BIO* cakey_bio = BIO_new_mem_buf((void*) cakey_str, cakey_length);
-  EVP_PKEY* cakey = PEM_read_bio_PrivateKey(cakey_bio, NULL, NULL, NULL);
-  if (! cakey) {
-    send_error(L, "Error decoding private key\n");
-  }
+  EVP_PKEY* cakey = read_parameter(L, 1, &read_private_key, "Error decoding private key\n");
   
   // load cacert from arg[2]
-  size_t cacert_length = 0;
-  const char* cacert_str = luaL_checklstring(L, 2, &cacert_length);
-  BIO* cacert_bio = BIO_new_mem_buf((void*) cacert_str, cacert_length);
-  X509* cacert = PEM_read_bio_X509(cacert_bio, NULL, NULL, NULL);
-  if (! cacert) {
-    send_error(L, "Error decoding certificate\n");
-  }
+  X509* cacert = read_parameter(L, 2, &read_certificate, "Error decoding certificate\n");
+  
   
   // Check that CAkey and CAcert match before proceeding. TODO: move this test to startup...
   if (!X509_check_private_key(cacert, cakey))
@@ -434,13 +321,7 @@ LUA_FUNCTION(l_sign_cn_key) {
   char* cn = (char*) luaL_checklstring(L, 3, &cn_length);
 
   // Client's public key is arg[4]
-  size_t key_length = 0;
-  const char* pubkey_str = luaL_checklstring(L, 4, &key_length);
-  BIO* pubkey_bio = BIO_new_mem_buf((void*) pubkey_str, key_length);
-  EVP_PKEY* pubkey = PEM_read_bio_PUBKEY(pubkey_bio, NULL, NULL, NULL);
-  if (! pubkey) {
-    send_error(L, "Error decoding public key\n");
-  }
+  EVP_PKEY* pubkey = read_parameter(L, 4, &read_public_key, "Error decoding public key\n");
   // sign it!
   X509* cl_cert = cn_key_sign(cakey, cacert, cn, pubkey);
 
