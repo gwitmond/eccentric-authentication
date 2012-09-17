@@ -1,0 +1,19 @@
+Source: ecca
+Section: net
+Priority: optional
+Maintainer: Guido Witmond <guido@witmond.nl>
+Build-Depends: debhelper (>= 8.0.0), lualib5.1-dev, libssl-dev (>=1.0), luarocks
+Standards-Version: 3.9.3
+Homepage: https://github.com/gwitmond/eccentric-authentication
+
+Package: ecca-signer
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, nginx-database, lua5.1, memcachedb, libssl1.0.0 (>=1.0)
+Description: Ecca creates pseudonymous client certificates with ease.
+ Eccentric Autentication is a protocol to create client certificates for your users.
+ .
+ It allows your users to register with a nickname. The system checks if it is 
+ unique (not taken) and signs the certificate. Users can use this to log in to 
+ your website securely.
+ .
+ This package contains the signer and the code to set it up.

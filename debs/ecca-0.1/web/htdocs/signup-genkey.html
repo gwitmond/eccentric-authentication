@@ -1,0 +1,25 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html> <head>
+<title>Eccentric Authority CA</title>
+</head>
+
+<body>
+<h1>Register for [ecca.localhost]</h1>
+
+<h2>Welcome to [localhost].</h2>
+
+<p>To access the site, you are requested to sign up here.
+
+<p><form method="post" action="/register-spkac">
+<label>Username: </label><input type="text" name="cn"><br>
+<keygen name="spkac" challenge="none" keytype="rsa"><br>
+<input type="submit" value="Register">
+</form>
+<hr>
+<h2>Choose a nickname</h2>
+<p>First, think of the nickname you want to use at [localhost]. It's the way we (and the others here) will know you.
+<p>There is only one requirement: it must be different from all the other usernames at the site. You can test it here: https://check-name-available?name=YourUsername. We will make nice javascript button for that later.
+
+<hr>
+</body> </html>
+
