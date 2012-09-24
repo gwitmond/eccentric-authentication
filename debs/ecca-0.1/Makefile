@@ -4,16 +4,17 @@
 #CC=gcc
 CC=clang
 
-# build must be first
 
 build test clean:
 	$(MAKE) -C src $@
 
 install:
 	$(MAKE) -C src install
-	mkdir -p $(DESTDIR)/etc/ecca
-	mkdir -p $(DESTDIR)/usr/share/ecca/
-	cp conf/nginx.conf  $(DESTDIR)/etc/ecca
-	cp -r web scripts $(DESTDIR)/usr/share/ecca/
+
+#	cp conf/nginx.conf                  $(DESTDIR)/etc/ecca
+#	cp conf/openssl-rootca.cnf.example  $(DESTDIR)/etc/ecca/CA/rootCA/
+#	cp conf/openssl-subca.cnf.example   $(DESTDIR)/etc/ecca/CA/subCA/
+#	cp -r web scripts                   $(DESTDIR)/usr/share/ecca/
 
 .PHONY: build test clean
+

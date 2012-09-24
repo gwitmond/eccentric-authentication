@@ -1,0 +1,11 @@
+etc/ecca/rootCA/certs
+etc/ecca/rootCA/newcerts
+etc/ecca/rootCA/crl
+etc/ecca/rootCA/private
+
+etc/ecca/subCA/certs
+etc/ecca/subCA/newcerts
+etc/ecca/subCA/crl
+etc/ecca/subCA/private
+
+etc/ecca/web
