@@ -1,0 +1,15 @@
+Source: ecca-sample-site
+Section: net
+Priority: optional
+Maintainer: Guido Witmond <guido@witmond.nl>
+Build-Depends: debhelper (>= 8.0.0)
+Standards-Version: 3.9.3
+Homepage: https://github.com/gwitmond/eccentric-authentication
+
+Package: ecca-sample-site
+Architecture: all
+Depends: ${shlibs:Depends}, ${misc:Depends}, nginx-database, ecca
+Description: Example website to show Eccentric Authentication
+ This is an example website that uses Eccentric Authentication to 
+ authenticate its users with client certificates.
+ 

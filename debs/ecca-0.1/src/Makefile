@@ -9,7 +9,7 @@ OPENSSL_INCLUDE=/usr/include/openssl
 #OPENSSL_LIB=$(OPENSSL_BASE)/lib
 LUA_INCLUDE=/usr/include/lua5.1
 
-LUA_LIBDIR=$(DESTDIR)/usr/share/lua/5.1
+LUA_LIBDIR=$(DESTDIR)/usr/lib/lua/5.1
 
 # OS dependent
 LIB_OPTION= -shared

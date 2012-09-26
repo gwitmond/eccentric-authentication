@@ -32,7 +32,7 @@ function register_spkac()
    -- change the line based layout from firefox into a single line for openssl parsing
    spkac = string.gsub(spkac, "[\r\n]", "")
 
-   io.stderr:write("spkca is ", spkac)
+   ---io.stderr:write("spkca is ", spkac)
    -- validate uniqueness, before creating a certificate
    local res = ngx.location.capture("/check-nickname-available", {args = {nickname = cn}})
    if res.status == 200 then
@@ -63,7 +63,7 @@ function register_spkac()
 					      }
 					   })
 	 -- TODO: handle errors from memcache store.
-	 io.stderr:write("certificate created. Storing gave: ", res2.status, res2.body)
+	 ---io.stderr:write("certificate created. Storing gave: ", res2.status, res2.body)
 
 	 -- TODO: encode it for the specific browser (is that needed?)
 	 ngx.header["Content-Type"] = 'application/x-x509-user-cert'

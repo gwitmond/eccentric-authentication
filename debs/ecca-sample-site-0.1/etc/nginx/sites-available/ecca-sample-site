@@ -1,0 +1,109 @@
+## nginx.conf for Ecca sample site
+
+## to be included from debians /etc/nginx/nginx.conf
+
+    # HTTPS server
+    # Runs the open pages, ie, accessible to anyone.
+    server {
+        listen               7443;
+	keepalive_timeout    70;
+        server_name   	     www;
+
+	## We use ssl for both server and clients authentication.
+	## This key must is made by sample-server postinst and for now must
+	## be signed with the Ecca Root key.
+        ssl                  on;
+        ssl_certificate      /etc/ecca/sample/sample-server-cert-chain.pem;
+        ssl_certificate_key  /etc/ecca/sample/sample-server-key.pem;
+
+        ssl_session_timeout  10m;
+	ssl_session_cache    shared:SSL:10m;
+
+        ssl_protocols        SSLv3 TLSv1 TLSv1.1 TLSv1.2;
+        ssl_ciphers          HIGH:!aNULL:!MD5;
+        ssl_prefer_server_ciphers   on;
+
+
+	## This is important, we accept clients only when signed by our own localCA!
+	## If starting this site break here, please set up ecca_x.y.deb first.
+	## TODO: rename to chained-ecca-cert.pem in here and in ecca.deb
+	ssl_client_certificate /etc/ecca/subCA/chained-cacert.pem;
+
+	## we set to optional so we can allow some pages non-authenticated 
+	## welcome pages, help pages and errors.
+	ssl_verify_client      optional;
+
+
+	## There is one sublevel, so we verify 1 root level and 1 sublevel
+	ssl_verify_depth       2; 
+
+	## This is the document root.
+	root  /usr/share/ecca-sample-site/htdocs;
+
+	## show welcome page and link to CA to register,
+        location / {
+	    ## don't check SSL-client login status so we can show 'open' pages.
+	    index index.html;
+        }
+
+	## This is the part of our site that requires certicate login.
+	location /secure {
+	    access_by_lua '
+	        if ngx.var.ssl_client_verify == "SUCCESS" then
+		    return
+		end
+		ngx.exit(401)  -- unauthorized; show 401 page below.
+	    ';
+	    ## show some static pages
+	    index index.html;
+
+	    ## You could proxy to application server with proxypass, fcgi, etc.
+	    ## proxypass http://localhost:xxx/;
+	    ## proxy_redirect  off;
+	    ## proxy_set_header Host                $host;
+	    ## proxy_set_header X-Real-IP           $remote_addr;
+            ## proxy_set_header X-Forwarded-For     $proxy_add_x_forwarded_for;
+            ## proxy_set_header X-SSL-Client-Verify $ssl_client_verify;   ## Returns SUCCESS, FAILED, or NONE
+            ## proxy_set_header X-SSL-Client-S-DN   $ssl_client_s_dn;     ## subject DN
+            ## proxy_set_header X-SSL-Client-I-DN   $ssl_client_i_dn;     ## issuer DN
+            ## proxy_set_header X-SSL-Client-Serial $ssl_client_serial;
+	}
+
+	## no authentication provided, show page with link to CA to sign up. 	
+	error_page  401	     	     /401.html;
+	location = /401.html {
+    	    content_by_lua '
+	        ngx.say("<h1>401 - Authorization requested</h1><p>Result was: " .. 
+				(ngx.var.ssl_client_verify or "(none)") .. 
+			        "<br>You gave certificate " ..  (ngx.var.ssl_client_s_dn or "(none)") .. 
+		    		"<br>signed by " .. (ngx.var.ssl_client_i_dn or "(none)"))	    
+	    	'; 
+	}
+	
+	## wrong authentication provided, tell user to log out and try a different one (of this CA!).
+	error_page  403              /403.html;
+
+	## the nginx error code  when for when there is an error in client certification
+	## ask customer to provide certificate from right authority or have them create a new identity
+	error_page  495              /495.html;
+	location = /495.html {
+    	    content_by_lua '
+	        ngx.say("<h1>495 - Wrong certificate authority</h1><p>Result was: " .. 
+		    		 (ngx.var.ssl_client_verify or "(none)") .. 
+				 "<br>You gave certificate " ..  (ngx.var.ssl_client_s_dn or "(none)") .. 
+		    		 "<br>signed by " .. (ngx.var.ssl_client_i_dn or "(none)"))	    
+	    	'; 
+    	}
+
+	## the nginx error when for when the client did not present the required certificate. (TODO: is that a 403???)
+	error_page  496              /496.html;
+	location = /496.html {
+    	    content_by_lua '
+	        ngx.say("<h1>496 - missing certificate authority</h1><p>Result was: " .. 
+		    		 (ngx.var.ssl_client_verify or "(none)") .. 
+		    		 "<br>You gave certificate " ..  (ngx.var.ssl_client_s_dn or "(none)") .. 
+		    		 "<br>signed by " .. (ngx.var.ssl_client_i_dn or "(none)"))	    
+	    	'; 
+    	}
+    }
+    

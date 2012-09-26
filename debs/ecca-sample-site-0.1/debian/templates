@@ -1,0 +1,13 @@
+Template: ecca-sample-site/servername
+Type: string
+Default: www.yourdomain.org
+Description: The servername of your web server
+ This is the server name of your web server, the server that will serve what your 
+ customers come for.
+ .
+ The servername you specify here will be used to configure the server certificate. 
+ It allows your clients to connect to your site securely.
+ .
+ When in doubt choose: www.yourdomain.org.
+ .
+ This will be used in the server configuration and the server certificate.

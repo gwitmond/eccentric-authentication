@@ -60,7 +60,7 @@ function register()
 					      }
 					   })
 	 -- TODO: handle errors from memcache store.
-	 io.stderr:write("certificate created. Storing gave: ", res2.status, res2.body)
+	 ---io.stderr:write("certificate created. Storing gave: ", res2.status, res2.body)
 
 	 -- TODO: encode it for the specific browser (is that needed?)
 	 ngx.status = res2.status; -- we return errorcode of memcacheDB: 201, 404...
