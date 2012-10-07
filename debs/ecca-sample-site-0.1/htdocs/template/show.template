@@ -16,15 +16,17 @@
   <li><a href="/explanation.html">Explanation</a></li>
 </ul>
 
-<body>
-<h1>401 - Acess Forbidden</h1>
+<h3>Welcome to the Favorite Number Site</h3>
 
-<p>This site uses Eccentric Authentication. Instead of passwords we
-use cryptographic certificates to create an account.
+<p>Welcome to the favorite number site. Here you can share your
+favorite number with the world. 
 
-<p>You can sign up here: <a href="/register.html">Register</a>.
+<h4>Here are the latest favorites.</h4>
 
-<p>If you want to know more about Eccentric Authentication look at the
-<a href="/explanation.html">Explanation</a.
+<table>
+  <tr><th>Name</th><th>Number</th></tr>
+  __ROWS__
+</table>
+<p>If you wish to add <a href="/share">your number</a> to the list.
 <hr>
 </body> </html>

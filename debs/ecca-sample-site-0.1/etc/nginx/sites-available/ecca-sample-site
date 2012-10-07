@@ -2,15 +2,25 @@
 
 ## to be included from debians /etc/nginx/nginx.conf
 
+   ## apt-get install lua-json lua-cosmo
+   #init_by_lua 'require "json"; require "cosmo"';
+
+   lua_code_cache off;
+
+   upstream numbers_store {
+       server 127.0.0.1:21201;
+       keepalive 2;
+   }
+
     # HTTPS server
     # Runs the open pages, ie, accessible to anyone.
     server {
-        listen               7443;
+        listen               8000;
 	keepalive_timeout    70;
         server_name   	     www;
 
 	## We use ssl for both server and clients authentication.
-	## This key must is made by sample-server postinst and for now must
+	## This key is made by sample-server postinst and for now must
 	## be signed with the Ecca Root key.
         ssl                  on;
         ssl_certificate      /etc/ecca/sample/sample-server-cert-chain.pem;
@@ -32,59 +42,76 @@
 	## we set to optional so we can allow some pages non-authenticated 
 	## welcome pages, help pages and errors.
 	ssl_verify_client      optional;
+	#ssl_verify_client      on;
 
 
 	## There is one sublevel, so we verify 1 root level and 1 sublevel
 	ssl_verify_depth       2; 
 
 	## This is the document root.
-	root  /usr/share/ecca-sample-site/htdocs;
+	#root  /usr/share/ecca-sample-site/htdocs;
+	root  htdocs;
 
-	## show welcome page and link to CA to register,
+	## show welcome page and free to watch pages
         location / {
 	    ## don't check SSL-client login status so we can show 'open' pages.
 	    index index.html;
         }
 
-	## This is the part of our site that requires certicate login.
-	location /secure {
+	location /template {
+	    #internal;
+	}
+
+	# GET /memc?key=dog
+    	#
+    	# POST /memc?key=cat
+    	# Cat's value...
+    	#
+    	# PUT /memc?key=bird
+    	# Bird's value...
+    	#
+    	# DELETE /memc?key=Tiger
+	location /memc {
+	    internal;
+	    set $memc_key $arg_key;
+	    memc_pass numbers_store;
+	}
+
+	
+	location /show {
+	    content_by_lua_file scripts/show.lua;
+	}
+
+	location /share {
 	    access_by_lua '
 	        if ngx.var.ssl_client_verify == "SUCCESS" then
 		    return
 		end
 		ngx.exit(401)  -- unauthorized; show 401 page below.
 	    ';
-	    ## show some static pages
-	    index index.html;
-
-	    ## You could proxy to application server with proxypass, fcgi, etc.
-	    ## proxypass http://localhost:xxx/;
-	    ## proxy_redirect  off;
-	    ## proxy_set_header Host                $host;
-	    ## proxy_set_header X-Real-IP           $remote_addr;
-            ## proxy_set_header X-Forwarded-For     $proxy_add_x_forwarded_for;
-            ## proxy_set_header X-SSL-Client-Verify $ssl_client_verify;   ## Returns SUCCESS, FAILED, or NONE
-            ## proxy_set_header X-SSL-Client-S-DN   $ssl_client_s_dn;     ## subject DN
-            ## proxy_set_header X-SSL-Client-I-DN   $ssl_client_i_dn;     ## issuer DN
-            ## proxy_set_header X-SSL-Client-Serial $ssl_client_serial;
+	    content_by_lua_file scripts/share.lua;
 	}
 
-	## no authentication provided, show page with link to CA to sign up. 	
+	## no authentication provided, show page with link to CA to sign up.
 	error_page  401	     	     /401.html;
-	location = /401.html {
-    	    content_by_lua '
-	        ngx.say("<h1>401 - Authorization requested</h1><p>Result was: " .. 
-				(ngx.var.ssl_client_verify or "(none)") .. 
-			        "<br>You gave certificate " ..  (ngx.var.ssl_client_s_dn or "(none)") .. 
-		    		"<br>signed by " .. (ngx.var.ssl_client_i_dn or "(none)"))	    
-	    	'; 
-	}
+
+	#location = /401.html {
+    	#    content_by_lua '
+	#        ngx.say("<h1>401 - Authorization requested</h1><p>Result was: " .. 
+	#			(ngx.var.ssl_client_verify or "(none)") .. 
+	#		        "<br>You gave certificate " ..  (ngx.var.ssl_client_s_dn or "(none)") .. 
+	#	    		"<br>signed by " .. (ngx.var.ssl_client_i_dn or "(none)"))
+	#      '; 
+	#}
 	
-	## wrong authentication provided, tell user to log out and try a different one (of this CA!).
+	
+	## wrong authentication provided
+	## advise user to log out and try a different one (of this CA!).
 	error_page  403              /403.html;
 
 	## the nginx error code  when for when there is an error in client certification
-	## ask customer to provide certificate from right authority or have them create a new identity
+	## ask customer to provide certificate from right authority or 
+	## ask them create a new identity
 	error_page  495              /495.html;
 	location = /495.html {
     	    content_by_lua '
@@ -107,3 +134,24 @@
     	}
     }
     
+#	// location /secure {
+#	//     access_by_lua '
+#	//         if ngx.var.ssl_client_verify == "SUCCESS" then
+#	// 	    return
+#	// 	end
+#	// 	ngx.exit(401)  -- unauthorized; show 401 page.
+#	//     ';
+#	//     ## show some static pages
+#	//     index index.html;
+#
+#	//     ## You could proxy to application server with proxypass, fcgi, etc.
+#	//     ## proxypass http://localhost:xxx/;
+#	//     ## proxy_redirect  off;
+#	//     ## proxy_set_header Host                $host;
+#	//     ## proxy_set_header X-Real-IP           $remote_addr;
+#        //     ## proxy_set_header X-Forwarded-For     $proxy_add_x_forwarded_for;
+#        //     ## proxy_set_header X-SSL-Client-Verify $ssl_client_verify;   ## Returns SUCCESS, FAILED, or NONE
+#        //     ## proxy_set_header X-SSL-Client-S-DN   $ssl_client_s_dn;     ## subject DN
+#        //     ## proxy_set_header X-SSL-Client-I-DN   $ssl_client_i_dn;     ## issuer DN
+#        //     ## proxy_set_header X-SSL-Client-Serial $ssl_client_serial;
+#	// }

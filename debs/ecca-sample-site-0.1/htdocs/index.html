@@ -5,17 +5,50 @@
 
 <body>
 <h1>Simple site for Eccentric CA</h1>
-<h2>Proof of concept</h2>
+<h2>Favorite number site</h2>
 
-<p>This is the index page. It shows the content you can read without logging in. For example, the most recent items on a blog.
 
-<p>To <a href="/secure/blogwrite">write</a> a comment, or your own blog, you need to be logged in. This link takes you there.
-<br>If you have registered at the Eccentric CA and loaded the certificate (pseudonym/identity) into you browser, please select it and you're ready to write.
-<br>If you don't have an registered identity, it will show you the where to sign up.
+<ul>
+  <li><a href="/">Home</a></li>
+  <li><a href="/show">Show</a></li>
+  <li><a href="/register.html">Register</a></li>
+  <li><a href="/share">Share your number</a></li>
+  <li><a href="/explanation.html">Explanation</a></li>
+</ul>
 
-<h2>Sign up</h2>
-<p>You can sign up for (more) identities at <a href="https://127.0.0.1:7444/signup-genkey.html">https://127.0.0.1:7444/register</a>. All you need is a nickname that you decide and a private key. It tells you how to do that.
+<h3>Welcome to the Favorite Number Site</h3>
 
+<p>Welcome to the favorite number site. Here you can share your
+favorite number with the world. 
+
+<p>Take a look at the current most <a href="/show">favorite</a> numbers.
+
+<p>Everyone can come and visit the site. Reading is open for
+everyone. Writing is limited to members only. Imagine the mess if
+everyone could write anything.
+
+<p>To become a member, all you have to do
+is <a href="register.html">register</a>. You choose the username you wish to have
+and your browser must come up with some cryptographic bits to make it secure. With
+Firefox, that is easy. It does the all the difficult cryptographic
+work for you.
+
+<p>After registering, you can log in with the cryptographic bits and
+safely share your favorite number to the world.
+
+<p>Does your favorite number change over time, feel free to come back
+and change it. You could even update it like the weather. Just let
+your browser log you in with the cryptographic bits and update your
+number.
+
+<h3>No joke</h3>
+
+<p>Well, a site to show off favorite numbers is a joke. What's not a
+joke is the technology behind the registration and log in pages. It's
+the worlds easiest Client Certificate system.
+
+<p>Its called Eccentric Authentication. For more information, see
+the <a href="explanation.html">Explanation page</a>.
 
 <hr>
 </body> </html>
