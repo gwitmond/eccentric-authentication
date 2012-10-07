@@ -42,6 +42,7 @@ case "$1" in
     db_get ecca-ca/email-address       ; EMAIL=${RET:?missing value for email-address}
     db_get ecca-ca/organizational-unit ; ORGUNIT=${RET:-\.}
     db_get ecca-signer/servername      ; SERVERCN=${RET:?missing value for servername}
+    db_get ecca-sample/servername      ; SAMPLECN={$RET:?missing value for sample server name}
 
     ROOTCONF=/etc/ecca/rootCA/openssl-rootca.cnf
     SUBCONF=/etc/ecca/subCA/openssl-subca.cnf
@@ -63,12 +64,13 @@ case "$1" in
 	    -e "{s/^\( *organizationName *\)=.*$/\1= $ORG/"} \
 	    -e "{s/^\( *organizationalUnitName *\)=.*$/\1= $ORGUNIT/"} \
 	    -e "{s/^\( *emailAddress *\)=.*$/\1= $EMAIL/"} \
-	    < $SUBCONF.example > $SUBCONF	
+	    < $SUBCONF.example > $SUBCONF
 
 
 	ROOTCSR=`mktemp`
 	SUBCSR=`mktemp`
 	SERVERCSR=`mktemp`
+	SAMPLECSR=`mktemp`
 
 	#warn "Creating self signed RootCA private key pair and certificate"
 
@@ -106,13 +108,23 @@ case "$1" in
 	openssl genrsa -out $SERVERKEY 2048
 	openssl req -new -key $SERVERKEY -out $SERVERCSR \
 	    -subj "/C=$COUNTRY/ST=$STATE/L=$CITY/O=$ORG/OU=$ORGUNIT/CN=$SERVERCN"
-
-	#openssl req -config $ROOTCONF -new -key $SERVERKEY -out $SERVERCSR
-
 	openssl ca -config $ROOTCONF -out $SERVERCERT -days 365 -keyfile $ROOTCAKEY \
 	    -extensions usr_cert -batch -infiles $SERVERCSR
 
 	rm -f $SERVERCSR
+
+	# warn "Creating server certificate for ecca-sample-site signed with RootCA
+
+	SAMPLEKEY=/etc/ecca/sample/sample-server-key.pem
+	SAMPLECERT=/etc/ecca/sample/sample-server-cert-chain.pem
+	openssl genrsa -out $SAMLEKEY 2048
+	openssl req -new -key $SAMPLEKEY -out $SAMPLECSR \
+	    -subj "/C=$COUNTRY/ST=$STATE/L=$CITY/O=$ORG/OU=$ORGUNIT/CN=$SAMPLECN"
+
+	openssl ca -config $ROOTCONF -out $SAMPLECERT -days 365 -keyfile $ROOTCAKEY \
+	    -extensions usr_cert -batch -infiles $SAMLPECSR
+
+	rm -f $SAMPLECSR
     fi
     ;;
 

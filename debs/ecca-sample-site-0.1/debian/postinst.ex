@@ -31,7 +31,7 @@ case "$1" in
 	SAMPLE_SERVER_CHAIN=/etc/ecca/sample/sample-server-cert-chain.pem    
 
 	if [ ! -e $SAMPLE_SERVER_KEY ]
-	then    
+	then
             ## read the CA parameters, 
 	    ## we need to create a server certificate signed by the root and it requires 
 	    ## these values.
@@ -55,6 +55,11 @@ case "$1" in
 	    cat $SAMPLE_SERVER_CERT $ROOTCACERT > $SAMPLE_SERVER_CHAIN
 	    
 	    rm -f $SERVERCSR
+
+	    NGX_CONF=/etc/nginx/sites-available/ecca-sample-site.example
+	    sed -e "{s/^\( *server_name *\)=.*$/\1= $SERVERCN/"} \
+		< $NGX_CONF.example > $NGX_CONF
+	    
 	fi
 	;;
 

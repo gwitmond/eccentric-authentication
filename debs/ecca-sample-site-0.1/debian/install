@@ -1,3 +1,4 @@
 # just copy everything here to the package
 etc
-htdocs /usr/share/ecca-sample-site/
+htdocs  /usr/share/ecca-sample-site/
+scripts /usr/share/ecca-sample-site/
