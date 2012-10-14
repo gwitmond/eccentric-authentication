@@ -18,16 +18,229 @@
 <body>
 <h1>Explanation</h1>
 
-<p>This site uses Eccentric Authentication. Instead of passwords we
-use cryptographic certificates to create an account.
+<p>This site uses Eccentric Authentication. Instead of passwords it
+uses cryptographic certificates to create accounts.
 
 <h4>The problems with passwords</h4>
 
 Too easy to crack, too difficult to remember.....
 
-<h4>The solution</h4>
+<h4>Eccentric Authentication</h4>
 
-To be done ...
+
+I'll try to clarify what Eccentric Authentication is and is
+not. First, what it is not.
+
+<h2>What Eccentric Authentication is not</h2>
+
+<h4>Not a FIM</h4>
+
+A FIM is a federated Identity management system. FIMs are designed to
+allow participants to recognize each other as member of the group. 
+A FIM can be used to identify these participants to outsiders.
+
+<p> FIMs are good in
+settings where trust is decreed, like in a company. 
+
+<p>For example, a bank uses a FIM to identify all employees. As customer
+I can reject all messages from scammers because these messages are not
+validated by the FIM.
+
+<p><em>Ecca is not a FIM.</em>
+
+<h4>Email address identity</h4>
+
+I have my own vanity domain, and I use it as my primary email
+address. My email address is therefore almost a synonym for my real name. That,
+in turn implies that every account that is linked to my email addres
+is tied to my meat space identity too.
+
+<p>With my use of SPF to prevent spammers from abusing my email address I
+have less opportunity to repudiate (to lie) about the origin of a
+message that I might regret at a later date. I must therefore be very
+careful with what I write and blog about.
+
+<p>I would hazard a guess that most email addresses are tied to meat
+space identities, given the pervasiveness of data tracking and
+profiling. 
+
+<h4>Fully validated certificates</h4>
+
+A fully validated global CA certificate is a digital identity tied to
+your real meat space identity.
+
+<p>When you use a fully validated certificate, all your actions and
+messages are tagged with your real identity for life.
+
+<p>These certificates are good for public functions, like Public
+Notaries, or governmental publications where that is a good thing to
+have.
+
+<h4>Lousy validated certificates</h4>
+
+<p>A Lousy Validated Certificate is a Certificate whose validations have
+been granted on shaky grounds. Most likely, the <i>"validation"</i> is
+<i>"control"</i> of an email address. 
+ 
+<p>It's neither meat nor fish. These certificates are good for nothing. They should die.
+
+<h4>Not Persona/BrowserID</h4>
+
+Mozillas Persona/BrowserID is a FIM with a Lousy Validated certificate
+based upon email "validation". No Thanks.
+
+
+<h4>Yet-Another-Account</h4>
+
+What the Y-A-A problem actually is, is a roadblock that web site
+owners impose upon their visitors. As the internet is mostly
+anonymous in nature, site owners want to recognize return visitors. 
+
+<p>On itself the login procedure is not too taxing but with so many sites
+requiring it, it becomes a burden. 
+
+<p>When a site requires an email address for a validation email it ties the account to the email identity and from there to the meat space identity. It can be a high price for a comment on a blog.
+
+<p>Often times, too much of a burden that visitors turn away, never to return. 
+
+<p>While there are ways to get a temporary email address at an anonymity
+provider, using these increases the burden.
+
+<p>Correct use of Ecca with useful browser support can solve the Y-A-A
+problem.
+
+<h2>What makes Eccentric Authentication different.</h2>
+
+<h4>Password replacement</h4>
+
+Eccas first purpose is a system to manage an account at a site. It
+replaces the hassles that come with passwords. It provides the user
+with a method to register at the site and later log in to it. The
+site can recognise the user at later visits.
+
+<h4>No third party</h4>
+
+Users request a certificate <em>from the site</em> where they want to sign up
+to. Users do not have to deal with any third party. The site itself
+runs the Certificate signer. Every site signs the certificates only
+for it's own site. With the certificate and the private key, the user
+can log in to the site.
+
+<h4>No identity validations</h4>
+
+An Ecca signer does not validate identities before signing a
+certificate.  Ecca has only one requirement, the username (CN) must be
+unique at the site.
+
+There are no validations of email addresses, identities, nothing. Each
+certificate is just that, a unique username for a site. The owner of
+the private key controls the use of the account at the site.
+
+At different sites you create different accounts. No need to share the
+identity at one to another site.
+
+<h4>Benefits</h4>
+
+This simple set up already gives us some benefits:
+<ul>
+<li> no more weak passwords, people can't memorize strong passwords anyway;</li>
+
+<li> no more lost passwords, browsers will handle that with the help of
+  cloud backup and synchronisation;</li>
+
+<li> on the server side, there is no need to store a username/password
+  database. As soon as the certificate is signed, it contains all
+  details needed to proces logins: username, users' public key,
+  signature by sites' own CAkey.<br>  
+  There is no data to steal from the site, except the contents of the
+  blogs. And that's mostly public anyway. Security requirements are
+  simpler (for simple sites). If you would store more privacy
+  sensitive user data your security requirements would increase
+  accordingly.</li>
+</ul>
+
+<h4>The end of Yet-Another-Account</h4>
+
+With Ecca certificates we can end the dreaded Yet-Another-Account
+roadblock.
+
+<p>We solve it by creating even more accounts. But we make account
+creation completely automatic. All it requires is <em>one click</em> from the
+user to sign up when he <em>decides</em> to register.
+
+<h4>User Agent</h4>
+
+<p>For this me must change the browser into a User Agent that puts the
+users' requirements first. Most browsers severly lack in this
+department.
+
+<p>Let me introduce a browser plug in. It takes care of all the
+crypto-details to make sure people do not have to do rsa-calculations
+by head. :-) 
+
+<p>The plug in has the properties that it can: <ul>
+<li> recognize the site (via web-domain);</li>
+<li> recognize whether a certificate is needed (a http-return code) 
+  and log in with one;</li>
+<li> handle the whole certificate request process automatically.</li>
+</ul>
+
+<h4>How to use</h4>
+
+<p>When you browse to a site that requires you to create an account, the
+plug in (not the site) gives you two buttons:<ul>
+<li> "Sign up"; it asks for a username and performs the registration; </li>
+<li> "Sign up anonymous": it creates a random username and signs up with it.</li>
+</ul>
+
+<p>As soon as you have pressed the button, the browser will create the
+certificate request and register at the sites' own CA. Then the plug
+in logs you in with the freshly signed certificate.
+
+<p> It takes less than a second to register and log in. And it leaves
+no identifiable information about you at the site.
+
+<p><em>Notice, it is the plug in that shows the buttons, does the account
+creation and login, not the site. There is not even a log in page on
+the site.</em>
+
+<p>When you later browse to the site again, the plug in recognizes the
+site, remembers the account and offers you to log in with the
+previously generated certificate. Just click on the button.
+
+<p>You could even tell your browser to always log you in when you
+navigate there. 
+
+<p>The user can also create multiple accounts a single site. For example,
+at a blog site, a user can write about parenting and politics under
+different identities while the plugin takes care of the identity
+and session management. (and onion routing).
+
+<p>The plug in also offers a log out button that ends the authenticated
+session so later visits to the site are anonymous again. It also needs
+to delete all session data, like cookies, caches and so on.
+
+<p>If there is a need, there could even be a "Na-Na-Na"-button in the
+plug in that creates a random username, uses it for the current session
+and deletes the key and certificate directly afterwards. This gives
+you a completely new identity every time you visit the
+site. 
+
+<p><em>Certificates are cheap. Use them aplenty.</em>
+
+<h4>Adoption</h4>
+
+<p>Right now, site owners might not be so happy to allow Ecca
+certificates. It gives the visitor the freedom to choose under which
+username to log in at any time.
+
+<p>With a good plug in, it's easier for visitors to use certificates than
+to create an account and password manually. This could nugde site
+owners to migrate towards Ecca.
+
+<p>I do believe that once critical mass is achieved every site will
+accept Ecca and passwords will be a memory.
+
 
 <p>For more information see <a href="https://github.com/gwitmond/eccentric-authentication">https://github.com/gwitmond/eccentric-authentication</a>
 
