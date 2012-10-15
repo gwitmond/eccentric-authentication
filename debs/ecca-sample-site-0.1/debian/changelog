@@ -1,3 +1,9 @@
+ecca-sample-site (0.1-2) UNRELEASED; urgency=low
+
+  * Improved the explanation page with a description of what it is.
+
+ -- Guido Witmond <guido@witmond.nl>  Sun, 14 Oct 2012 15:29:32 +0200
+
 ecca-sample-site (0.1-1) unstable; urgency=low
 
   * Initial release 
