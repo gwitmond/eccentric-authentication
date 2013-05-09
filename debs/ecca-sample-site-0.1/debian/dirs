@@ -1,5 +1,0 @@
-## here we store the servers' ssl key and certificate
-/etc/ecca/sample
-
-# This contains the certificate we use to verify our clients.
-/etc/ecca/subCA
