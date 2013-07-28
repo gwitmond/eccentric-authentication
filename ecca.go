@@ -22,15 +22,20 @@ import (
 	"github.com/gwitmond/unbound" // also does DANE parsing
 )
 
-
 // Authentication contains the configuration parameters for the application.
 // RegisterURL:  URL of the page at the FPCA  where the user agent signs up for a certificate
 //                         example:  "https://register-dating.wtmnd.nl:10444/register-pubkey"
-//
+// Debug: Boolean to determine debugging
 type Authentication struct {
 	RegisterURL   string
 	Templates *template.Template
-	
+	Debug bool 
+}
+
+func (ecca *Authentication) debug (format string, params... interface{}) {
+	if ecca.Debug == true {
+		log.Printf(format, params...)
+	}
 }
 
 // HTTP handlers
@@ -39,21 +44,25 @@ type Authentication struct {
 // applying the named template without parameters to the template
 func (ecca *Authentication) TemplateHandler (templateName string) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		ecca.debug("Ecca: rendering template: %q\n", templateName)
 		check(ecca.Templates.ExecuteTemplate(w, templateName,  nil))
 	})
 }
 
 // loggedInHandler returns a handler that calls the given handler when the client uses a certificate to authenticate.
 // Otherwise it sends a Ecca-login page
-func (ecca *Authentication) LoggedInHandler (hander http.HandlerFunc, templateParams ...interface{}) http.Handler {
+func (ecca *Authentication) LoggedInHandler (handler http.HandlerFunc, templateParams ...interface{}) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		// Require to be logged in.
+		ecca.debug("Ecca: Checking if user is logged in")
 		if len(req.TLS.PeerCertificates) == 0 {
+			ecca.debug("Ecca: User does not have a (correct) certificate, sending login page\n")
 			ecca.SendToLogin(w, templateParams...)
                 return
 		}
-		// Just run the application login
-		hander.ServeHTTP(w, req)
+		// User is logged in. Run the application handler.
+		ecca.debug("Ecca: User has certificate. CN is: %v\n", req.TLS.PeerCertificates[0].Subject.CommonName)
+		handler.ServeHTTP(w, req)
 	})
 }
 
@@ -93,52 +102,64 @@ func ReadCert(certFile string) (*x509.CertPool) {
         return pool
 }
 
-// type appHandler func(http.ResponseWriter, *http.Request) error
+type AppHandler func(http.ResponseWriter, *http.Request) error
 
-// // Catch panics and show them.
-// func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-// 	defer func() {
-// 		rec := recover()
-// 		if rec != nil {
-// 			fmt.Printf("Panic detected: %#v\n", rec)
-// 			http.Error(w, fmt.Sprintf("Panic: %#v", rec), 500)
-// 		}
-// 	}()
-// 	err := fn(w, r)
-// 	if err != nil {
-// 		fmt.Printf("Error detected: %v:\n", err.Error())
-// 		http.Error(w, err.Error(), 500)
-// 	}
-// }
+// Catch panics and show them.
+func (fn AppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		rec := recover()
+		if rec != nil {
+			fmt.Printf("Panic detected: %#v\n", rec)
+ 			http.Error(w, fmt.Sprintf("Panic: %#v", rec), 500)
+		}
+	}()
+	err := fn(w, r)
+	if err != nil {
+		fmt.Printf("Error detected: %v:\n", err.Error())
+		http.Error(w, err.Error(), 500)
+	}
+}
 
 
-// ValidateEccentricCertificate verifies that the given certificate (string) parses to 
-func ValidateEccentricCertificate(cert string) (username, site string, err error) {
-	cl_cert, err := ParseCert(cert)
-	if err != nil { return "", "", err }
+
+// ValidateEccentricCertificate verifies that the given certificate parses to a real x509 certificate and matches the
+// DANE/TLSA record it specifies in the CN.
+//func ValidateEccentricCertificate(certstr string) (username, site string, cert *x509.Certificate, err error) {
+func ValidateEccentricCertificate(cl_cert  *x509.Certificate) (username, site string, caCert *x509.Certificate, err error) {	    //cl_cert, err := ParseCert(certstr)
+	//if err != nil { return "", "", nil, err }
+	log.Printf("Got client certificate: Issuer: %#v\nand Subject: %#v", cl_cert.Issuer, cl_cert.Subject)
+
+	// Check the cn if it has the @@ in it.
 	cn := cl_cert.Subject.CommonName  // the chosen userid@@realm
-	
 	username, site = ParseCN(cn)
 	if username == "" || site == "" {
-		return "", "", errors.New("Certificate does not look like an Eccentric Authenticated client certificate")
+		return "", "", nil, errors.New("Certificate does not look like an Eccentric Authenticated client certificate. It has no <cn>@@sitename in the Subject.CommonName.")
 	}
 
+	// Now fetch the issuer. That must be the FPCA.
+	issuer := cl_cert.Issuer.CommonName
+	if issuer == "" { 
+		return "", "", nil, errors.New("Certificate does not look like an Eccentric Authenticated client certificate. It has an empty Issuer.CommonName. We expect the fqdn of its FPCA.")
+	}
 	unb := unbound.New()
-	caCert, err := unb.GetCACert(site)
+	caCert, err = unb.GetCACert(issuer)
 	check(err)
-	log.Printf("Got certificate: %#v\n", caCert)
+	log.Printf("Got certificate: Issuer: %#v\nand Subject: %#v", caCert.Issuer, caCert.Subject)
 	
 	err = cl_cert.CheckSignatureFrom(caCert)
 	check (err) // TODO: give out neat error at validation failure, not a panic.
 
-	return site, username, nil
+	return site, username, caCert, nil
 }
 
-// Parse a single (client) certificate 
+// Parse a single (client) certificate
 func ParseCert(cert string) (*x509.Certificate, error) {
 	// decode pem..., 
         pemBlock, _ := pem.Decode([]byte(cert))
-	fmt.Printf("pemBlock is: %#v\n", pemBlock)
+	if pemBlock == nil {
+		return nil, errors.New("Did not receive a PEM encoded block of data")
+	}
+	log.Printf("pemBlock is: %#v\n", pemBlock.Type)
 	// check PEM
 	if pemBlock == nil {
 		return nil, errors.New("Did not receive a PEM encoded certificate")
@@ -168,6 +189,20 @@ func ParseCN(cn string) (username, realm string) {
 	}
 	return "", ""
 } 
+
+func PEMEncode(cert *x509.Certificate) []byte {
+	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
+}
+
+func PEMDecode(pemBytes []byte) x509.Certificate {
+	block, _ := pem.Decode(pemBytes)
+        certs, err := x509.ParseCertificates(block.Bytes)
+        check(err)
+        if len(certs) != 1 {
+                check(errors.New(fmt.Sprintf("Cannot parse CA certificate from database. Received: %#v which parsed to %#v\n", pemBytes, certs)))
+        }
+        return *certs[0]
+}
 
 func check(err error) {
         if err != nil {
