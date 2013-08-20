@@ -6,7 +6,7 @@
 // Copyright 2013, Guido Witmond <guido@witmond.nl>
 // Licensed under AGPL v3 or later. See LICENSE.
 
-// Code that implemets the First Party Certificate Authority
+// Code that implements the First Party Certificate Authority
 
 package fpca
 
@@ -49,7 +49,8 @@ func (fpca *FPCA) SignClientCert(CN string, pubkey *rsa.PublicKey) ([]byte, erro
                 NotAfter:       time.Now().AddDate(10, 0, 0).UTC(),   // ten years.
 		IsCA:           false,
 		KeyUsage:       x509.KeyUsageDigitalSignature + x509.KeyUsageContentCommitment + x509.KeyUsageDataEncipherment + x509.KeyUsageKeyAgreement,
-		ExtKeyUsage:    []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageEmailProtection },
+		// set ExtKeyUsageAny to allow both login as well as message signing.
+		ExtKeyUsage:    []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
         }
 
 	// Create CLIENT certificate 

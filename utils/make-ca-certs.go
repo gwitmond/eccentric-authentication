@@ -18,10 +18,10 @@ import (
 )
 
 // Change the name of your application site. All other names are based upon that.
-var sitename = "datingtest.Wtmnd.nl"
-var registersitename = "register-" + sitename
+var sitename = "www.RentaNode.nl"
+var registersitename = "Register.RentaNode.nl"
 
-var fileprefix = "DatingTest" // the prefix for the RootCA and FPCA keys and certificates.
+var fileprefix = "rentanode" // the prefix for the RootCA and FPCA keys and certificates.
 var RootCAorg = "The Root CA that identifies all that belongs to " + sitename 
 var RootCAcn = "RootCA." + sitename
 var FPCAorg = "The FPCA for " + sitename

@@ -57,7 +57,7 @@ func (ecca *Authentication) LoggedInHandler (handler http.HandlerFunc, templateP
 		ecca.debug("Ecca: Checking if user is logged in")
 		if len(req.TLS.PeerCertificates) == 0 {
 			ecca.debug("Ecca: User does not have a (correct) certificate, sending login page\n")
-			ecca.SendToLogin(w, templateParams...)
+			ecca.SendToLoginPage(w, templateParams...)
                 return
 		}
 		// User is logged in. Run the application handler.
@@ -67,10 +67,10 @@ func (ecca *Authentication) LoggedInHandler (handler http.HandlerFunc, templateP
 }
 
 
-// SendToLogin redirects the browser to the sites' FPCA. 
+// SendToLoginPage redirects the browser to the sites' FPCA. 
 // It sets the WWW-Authenticate header so the user agent knows where to sign up.
 // It sets response headers so no output may have been written so far.
-func (ecca *Authentication) SendToLogin (w http.ResponseWriter, template_params ...interface{}) {
+func (ecca *Authentication) SendToLoginPage (w http.ResponseWriter, template_params ...interface{}) {
         w.Header().Set("Content-Type", "text/html")
 	// Tell the user-agent where to obtain a certificate.
         w.Header().Set("WWW-Authenticate", "Ecca type=\"public-key\" register=\"" + ecca.RegisterURL + "\"")
