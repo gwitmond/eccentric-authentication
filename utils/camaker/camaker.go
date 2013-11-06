@@ -12,17 +12,12 @@ package camaker
 import (
         "crypto/rand"
         "crypto/rsa"
-        // "crypto/tls"
         "crypto/x509"
         "crypto/x509/pkix"
-        // "encoding/pem"
         "errors"
-        //  "io"
-	//  "os"
 	"math/big"
         "time"
-	 // "text/template"
-	// "fmt"
+	"net"
 )
 
 // Generate 4k Root CA key.
@@ -114,7 +109,7 @@ func GenerateFPCA(subjectOrg string, subjectCN string, caCert *x509.Certificate,
 
 // create plain old https server certificates
 // doesn't have to be too strong.
-func GenerateCert(serverName string, caCert *x509.Certificate, caKey *rsa.PrivateKey, bits int) (*x509.Certificate, *rsa.PrivateKey, error) {
+func GenerateCert(serverName string, altnames []string, caCert *x509.Certificate, caKey *rsa.PrivateKey, bits int) (*x509.Certificate, *rsa.PrivateKey, error) {
 	priv, err := rsa.GenerateKey(rand.Reader, bits)
 	if err != nil {
 		return nil, nil, err
@@ -134,6 +129,16 @@ func GenerateCert(serverName string, caCert *x509.Certificate, caKey *rsa.Privat
 		NotBefore:      time.Now().Add(-5 * time.Minute).UTC(),
 		NotAfter:       time.Now().AddDate(2, 0, 0).UTC(),
 	}
+
+	// set IP-addesses and Server Alternate Names
+        for _, name := range altnames {
+                if ip := net.ParseIP(name); ip != nil {
+                        template.IPAddresses = append(template.IPAddresses, ip)
+                } else {
+                        template.DNSNames = append(template.DNSNames, name)
+                }
+        }
+
 
 	derBytes, err := x509.CreateCertificate(rand.Reader, &template, caCert, &priv.PublicKey, caKey)
 	if err != nil {
