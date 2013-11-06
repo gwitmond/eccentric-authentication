@@ -20,3 +20,10 @@ _cgo_export.*
 _testmain.go
 
 *.exe
+
+# emacs backup file
+*~
+
+# Certificates, private keys and DNSSEC-DANE records.
+*.pem
+*.bind
