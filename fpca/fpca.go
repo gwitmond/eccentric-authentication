@@ -50,7 +50,7 @@ func (fpca *FPCA) SignClientCert(CN string, pubkey *rsa.PublicKey) ([]byte, erro
 		IsCA:           false,
 		KeyUsage:       x509.KeyUsageDigitalSignature + x509.KeyUsageContentCommitment + x509.KeyUsageDataEncipherment + x509.KeyUsageKeyAgreement,
 		// set ExtKeyUsageAny to allow both login as well as message signing.
-		ExtKeyUsage:    []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
+		ExtKeyUsage:    []x509.ExtKeyUsage{x509.ExtKeyUsageAny, x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageEmailProtection},
         }
 
 	// Create CLIENT certificate 
