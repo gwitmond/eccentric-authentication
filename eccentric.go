@@ -29,7 +29,7 @@ import (
 type Authentication struct {
 	RegisterURL   string
 	Templates *template.Template
-	Debug bool 
+	Debug bool
 }
 
 func (ecca *Authentication) debug (format string, params... interface{}) {
@@ -122,24 +122,24 @@ func (fn AppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 
 
-// ValidateEccentricCertificate verifies that the given certificate parses to a real x509 certificate and matches the
+// ValidateEccentricCertificate verifies that the given certificate parses to a real x509 certificate 
+// and that it is signed by the FPCA
 // DANE/TLSA record it specifies in the CN.
-//func ValidateEccentricCertificate(certstr string) (username, site string, cert *x509.Certificate, err error) {
-func ValidateEccentricCertificate(cl_cert  *x509.Certificate) (username, site string, caCert *x509.Certificate, err error) {	    //cl_cert, err := ParseCert(certstr)
-	//if err != nil { return "", "", nil, err }
-	log.Printf("Got client certificate: Issuer: %#v\nand Subject: %#v", cl_cert.Issuer, cl_cert.Subject)
+// TODO: Deprecate this function as it handles only direct signing by the FPCA, no SubCAs
+// Use ValidateEccentricCertificateChain instead
+func ValidateEccentricCertificate(cl_cert  *x509.Certificate) (caCert *x509.Certificate, err error) {
+	log.Printf("Validate Eccentric Certificate got client certificate: Issuer: %#v\nand Subject: %#v", cl_cert.Issuer, cl_cert.Subject)
 
 	// Check the cn if it has the @@ in it.
 	cn := cl_cert.Subject.CommonName  // the chosen userid@@realm
-	username, site = ParseCN(cn)
-	if username == "" || site == "" {
-		return "", "", nil, errors.New("Certificate does not look like an Eccentric Authenticated client certificate. It has no <cn>@@sitename in the Subject.CommonName.")
-	}
+	log.Printf("Subject CommonName is %v\n", cn)
+	_, _, err = ParseCN(cn)
+	if err != nil { return nil, err }
 
 	// Now fetch the issuer. That must be the FPCA.
 	issuer := cl_cert.Issuer.CommonName
 	if issuer == "" { 
-		return "", "", nil, errors.New("Certificate does not look like an Eccentric Authenticated client certificate. It has an empty Issuer.CommonName. We expect the fqdn of its FPCA.")
+		return nil, errors.New("Certificate does not look like an Eccentric Authenticated client certificate. It has an empty Issuer.CommonName. We expect the fqdn of its FPCA.")
 	}
 	unb := unbound.New()
 	caCert, err = unb.GetCACert(issuer)
@@ -149,17 +149,92 @@ func ValidateEccentricCertificate(cl_cert  *x509.Certificate) (username, site st
 	err = cl_cert.CheckSignatureFrom(caCert)
 	check (err) // TODO: give out neat error at validation failure, not a panic.
 
-	return site, username, caCert, nil
+	return caCert, nil
 }
 
-// Parse a single (client) certificate
+// ValidateEccentricCertificate verifies that the given certificate parses to a real x509 certificate 
+// It is signed by the FPCA
+// DANE/TLSA record it specifies in the CN.
+func ValidateEccentricCertificateChain(cl_cert  *x509.Certificate, root *x509.Certificate) (chain []x509.Certificate, err error) {
+	log.Printf("Validate Eccentric Certificate Chain got client certificate: Issuer: %#v\nand Subject: %#v", cl_cert.Issuer, cl_cert.Subject)
+
+	// Check the cn if it has the @@ in it.
+	cn := cl_cert.Subject.CommonName  // the chosen userid@@realm
+	log.Printf("Subject CommonName is %v\n", cn)
+	_, _, err = ParseCN(cn)
+	if err != nil { return nil, err }
+
+	// Now fetch the chain
+	chain, err = FetchCertificateChain(cl_cert, root)
+	return 
+}
+
+// Fetch the certificate chain from the given certifcate upto the root.
+// Return the chain that validates the cl_cert.
+// This version looks up certificate in DNS based upon their CommonName.
+// ie. FPCA.domain.tld, ROOTCA.domain.tld.
+// We stop searching when certX.Issuer.CN == Root.Subject.CN
+// We return at least 1 certificate, the Root.
+// TODO: Get certificates based upon Serials
+func FetchCertificateChain(cl_cert *x509.Certificate, root *x509.Certificate) ([]x509.Certificate, error) {
+	chain, err := fetchCertificateChain(cl_cert, root)
+	// reverse to make the Root certificate last, as OpenSSL likes it.
+	for i, j := 0, len(chain)-1; i<j; i,j = i+1, i-i {
+		chain[i], chain[j] = chain[j], chain[i]
+	}
+	return chain, err
+}
+
+func fetchCertificateChain(cl_cert *x509.Certificate, root *x509.Certificate) (chain []x509.Certificate, err error) {
+	// check if cl_cert is signed by Root
+	if (cl_cert.Issuer.CommonName == root.Subject.CommonName) {
+		// client cert is signed by Root, there are no (more) intermediaries. We're done.
+		chain = append(chain, *root)
+		return chain, nil
+	}
+
+	issuer := cl_cert.Issuer.CommonName
+	if issuer == "" { 
+		// chain is empty at this point.
+		return chain, errors.New("Certificate does not look like an Eccentric Authenticated Intermediate certificate. It has an empty Issuer.CommonName. We expect the fqdn of its FPCA.")
+	}
+	unb := unbound.New()
+	caCert, err := unb.GetCACert(issuer)
+	check(err)
+	log.Printf("Got certificate: Issuer: %#v\nand Subject: %#v", caCert.Issuer, caCert.Subject)
+	
+	// check if the signature matches
+	err = cl_cert.CheckSignatureFrom(caCert)
+	check (err) // TODO: give out neat error at validation failure, not a panic.
+	
+	// recurse to get higher up the tree.
+	chain, err = FetchCertificateChain(caCert, root)
+	if (err != nil) { return } // empty, err
+	chain = append(chain, *caCert)
+	return // chain, nil
+}
+
+// Parse a single (client) certificate,
+// Return a x509.Certificate structure
+// To Be Deprecated. Use ParseCertString or ParseCertByteA instead
 func ParseCert(cert string) (*x509.Certificate, error) {
+	return ParseCertString(cert)
+}
+
+// Parse a single (client) certificate,
+// Return a x509.Certificate structure
+func ParseCertString(cert string) (*x509.Certificate, error) {
+	return ParseCertByteA([]byte(cert))
+}
+
+// Parse a single (client) certificate,
+// Return a x509.Certificate structure
+func ParseCertByteA(cert []byte) (*x509.Certificate, error) {
 	// decode pem..., 
-        pemBlock, _ := pem.Decode([]byte(cert))
+        pemBlock, _ := pem.Decode(cert)
 	if pemBlock == nil {
 		return nil, errors.New("Did not receive a PEM encoded block of data")
 	}
-	log.Printf("pemBlock is: %#v\n", pemBlock.Type)
 	// check PEM
 	if pemBlock == nil {
 		return nil, errors.New("Did not receive a PEM encoded certificate")
@@ -181,13 +256,13 @@ var cnRE = regexp.MustCompile(`^([^@]+)@@([a-zA-Z0-9._]+)$`)
 
 // parseCN parses the string and returns the username and realm parts if it mathes the
 // cnRE - regular expression. Otherwise, it returns two empty strings.
-func ParseCN(cn string) (username, realm string) {
+func ParseCN(cn string) (username, realm string, err error) {
 	match := cnRE.FindStringSubmatch(cn)
 	// fmt.Printf("match %v gives: %#v\n", cn, match)
 	if len(match) == 3 {
-		return match[1], match[2]
+		return match[1], match[2], nil
 	}
-	return "", ""
+	return "", "", errors.New("Certificate does not look like an Eccentric Authenticated client certificate. It has no <cn>@@sitename in the Subject.CommonName.")
 } 
 
 func PEMEncode(cert *x509.Certificate) []byte {
