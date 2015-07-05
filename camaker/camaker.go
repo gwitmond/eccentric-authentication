@@ -7,7 +7,7 @@
 
 // Code to make all those keys, certificates and DNSSEC records.
 
-package camaker
+package main
 
 import (
         "crypto/rand"

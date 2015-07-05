@@ -14,44 +14,54 @@ import (
         //"time"
 	"text/template"
 	"fmt"
-	"github.com/gwitmond/eccentric-authentication/utils/camaker"
+	"flag"
+	"strings"
 )
 
 // Change the name of your application site. All other names are based upon that.
-var sitename = "www.RentaNode.nl"
-var registersitename = "Register.RentaNode.nl"
+//var sitename = "PhishFreeBank.wtmnd.nl"
+//var fileprefix = "PhishFree" // the prefix for the RootCA and FPCA keys and certificates.
 
-var fileprefix = "rentanode" // the prefix for the RootCA and FPCA keys and certificates.
-var RootCAorg = "The Root CA that identifies all that belongs to " + sitename 
-var RootCAcn = "RootCA." + sitename
-var FPCAorg = "The FPCA for " + sitename
-var FPCAcn = "FPCA." + sitename
+var sitename = flag.String("site", "demosite.ecca", "The name of your site, without www. prefix")
+//var fileprefix = "ScamFull" // the prefix for the RootCA and FPCA keys and certificates.
+
 
 func main() {
+	flag.Parse()
+	prefix := strings.SplitN(*sitename, ".", 1)[0]
+
+	// These all depend on the sitename and prefix
+	sitealtnames := []string{"www." + *sitename}
+	registersitename := "Register." + *sitename
+	RootCAorg := "The Root CA that identifies all that belongs to " + *sitename 
+	RootCAcn := "RootCA." + *sitename
+	FPCAorg := "The FPCA for " + *sitename
+	FPCAcn := "FPCA." + *sitename
+
 	// Generate a self signed CA cert & key. 
 	// This is the Root CA key/cert.
-	caCert, caKey, err := camaker.GenerateCA(RootCAorg, RootCAcn, 4096)
+	caCert, caKey, err := GenerateCA(RootCAorg, RootCAcn, 4096)
 	handle(err)
-	writePair(fileprefix + "RootCA", caCert, caKey)
+	writePair(prefix + "RootCA", caCert, caKey)
 
 	// Generate the FPCA Key and certificate that sign the client certificates
-	fpcaCert, fpcaKey, err := camaker.GenerateFPCA(FPCAorg, FPCAcn, caCert, caKey, 3072)
+	fpcaCert, fpcaKey, err := GenerateFPCA(FPCAorg, FPCAcn, caCert, caKey, 3072)
 	handle(err)
-	writePair(fileprefix + "FPCA", fpcaCert, fpcaKey)
+	writePair(prefix + "FPCA", fpcaCert, fpcaKey)
 
         // Generate a site key and cert  signed by our RootCA
-        siteCert, siteKey, err := camaker.GenerateCert(sitename, caCert, caKey, 1024)
+        siteCert, siteKey, err := GenerateCert(*sitename, sitealtnames, caCert, caKey, 2048)
         handle(err)
-	writePair(sitename, siteCert, siteKey)
+	writePair(*sitename, siteCert, siteKey)
 
         // Generate a FPCA TLS key sign its certificate with our Root CA.
 	// So customers can use https to sign up.
-        regCert, regKey, err := camaker.GenerateCert(registersitename, caCert, caKey, 4096)
+        regCert, regKey, err := GenerateCert(registersitename, []string{}, caCert, caKey, 4096)
         handle(err)
 	writePair(registersitename, regCert, regKey)
 
 	// Generate TLSA records with RootCaCert
-	genTLSA("_443._tcp." + sitename, caCert)               // sites are signed by the RootCA. 
+	genTLSA("_443._tcp." + *sitename, caCert)               // sites are signed by the RootCA. 
 	genTLSA("_443._tcp." + registersitename, caCert)
 
 	// These form a certificate chain. Not endpoints of tls-connections. Therefore no "_443.tcp" specifiers.
@@ -108,7 +118,7 @@ func writeFile(filename string, data []byte, perm os.FileMode) error {
 
 // Generate a key
 func generatePair(serverName string, caCert *x509.Certificate, caKey *rsa.PrivateKey) (tls.Certificate, error) {
-	cert, key, err := camaker.GenerateCert(serverName, caCert, caKey, 1024)
+	cert, key, err := GenerateCert(serverName, []string{}, caCert, caKey, 1024)
 		
 	if err != nil {
 		return tls.Certificate{}, err
