@@ -214,6 +214,18 @@ func fetchCertificateChain(cl_cert *x509.Certificate, root *x509.Certificate) (c
 	return // chain, nil
 }
 
+
+// FetchRootCA fetches the RootCA certificate for the given hostname.
+func FetchRootCA(hostname string) (*x509.Certificate, error) {
+	rootname := "RootCA." + hostname // per definition
+	unb := unbound.New()
+	rootCaCert, err := unb.GetCACert(rootname)
+	check(err)
+	log.Printf("Got certificate: Issuer: %#v\nand Subject: %#v", rootCaCert.Issuer, rootCaCert.Subject)
+	return rootCaCert, err
+}
+
+
 // Parse a single (client) certificate,
 // Return a x509.Certificate structure
 // To Be Deprecated. Use ParseCertString or ParseCertByteA instead

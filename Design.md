@@ -7,7 +7,7 @@ Summary
 Eccentric Authentication uses client certificates to authenticate
 users at a site. However, instead of having a small number of globally
 trusted CA's we deploy a small _locally trusted_ localCA at each
-site. The localCA sign every request it receives on the one condition
+site. The localCA signs every request it receives on the one condition
 that the CN is unique at _that_ localCA.
 
 The localCA is only trusted by the local site. It effectively creates
@@ -40,7 +40,7 @@ identity: a combination of username and the name of the local CA, as
 
 username: the name the user chooses for his identity at the CA; 
 
-common name (CN): the SSL-name for the field that carries the username
+common name (CN): the x509-name for the field that carries the username
                   of the user at the certificate;
 
 Not part of Eccentic Authentication (but used in the description):
