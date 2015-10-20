@@ -67,7 +67,7 @@ func (ecca *Authentication) LoggedInHandler (handler http.HandlerFunc, templateP
 }
 
 
-// SendToLoginPage redirects the browser to the sites' FPCA. 
+// SendToLoginPage redirects the browser to the sites' FPCA.
 // It sets the WWW-Authenticate header so the user agent knows where to sign up.
 // It sets response headers so no output may have been written so far.
 func (ecca *Authentication) SendToLoginPage (w http.ResponseWriter, template_params ...interface{}) {
@@ -78,7 +78,6 @@ func (ecca *Authentication) SendToLoginPage (w http.ResponseWriter, template_par
 	// Render a template if we have one
 	if (len(template_params) >= 1) {
 		template := (template_params[0]).(string)
-		
 		check (ecca.Templates.ExecuteTemplate(w, template, template_params[1:]))
 	} else {
 		w.Write([]byte("You need to register.\n"))
@@ -122,7 +121,7 @@ func (fn AppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 
 
-// ValidateEccentricCertificate verifies that the given certificate parses to a real x509 certificate 
+// ValidateEccentricCertificate verifies that the given certificate parses to a real x509 certificate
 // and that it is signed by the FPCA
 // DANE/TLSA record it specifies in the CN.
 // TODO: Deprecate this function as it handles only direct signing by the FPCA, no SubCAs
@@ -138,21 +137,21 @@ func ValidateEccentricCertificate(cl_cert  *x509.Certificate) (caCert *x509.Cert
 
 	// Now fetch the issuer. That must be the FPCA.
 	issuer := cl_cert.Issuer.CommonName
-	if issuer == "" { 
+	if issuer == "" {
 		return nil, errors.New("Certificate does not look like an Eccentric Authenticated client certificate. It has an empty Issuer.CommonName. We expect the fqdn of its FPCA.")
 	}
 	unb := unbound.New()
 	caCert, err = unb.GetCACert(issuer)
 	check(err)
 	log.Printf("Got certificate: Issuer: %#v\nand Subject: %#v", caCert.Issuer, caCert.Subject)
-	
+
 	err = cl_cert.CheckSignatureFrom(caCert)
 	check (err) // TODO: give out neat error at validation failure, not a panic.
 
 	return caCert, nil
 }
 
-// ValidateEccentricCertificate verifies that the given certificate parses to a real x509 certificate 
+// ValidateEccentricCertificate verifies that the given certificate parses to a real x509 certificate
 // It is signed by the FPCA
 // DANE/TLSA record it specifies in the CN.
 func ValidateEccentricCertificateChain(cl_cert  *x509.Certificate, root *x509.Certificate) (chain []x509.Certificate, err error) {
@@ -166,7 +165,7 @@ func ValidateEccentricCertificateChain(cl_cert  *x509.Certificate, root *x509.Ce
 
 	// Now fetch the chain
 	chain, err = FetchCertificateChain(cl_cert, root)
-	return 
+	return // chain
 }
 
 // Fetch the certificate chain from the given certifcate upto the root.
@@ -194,7 +193,7 @@ func fetchCertificateChain(cl_cert *x509.Certificate, root *x509.Certificate) (c
 	}
 
 	issuer := cl_cert.Issuer.CommonName
-	if issuer == "" { 
+	if issuer == "" {
 		// chain is empty at this point.
 		return chain, errors.New("Certificate does not look like an Eccentric Authenticated Intermediate certificate. It has an empty Issuer.CommonName. We expect the fqdn of its FPCA.")
 	}
@@ -202,11 +201,11 @@ func fetchCertificateChain(cl_cert *x509.Certificate, root *x509.Certificate) (c
 	caCert, err := unb.GetCACert(issuer)
 	check(err)
 	log.Printf("Got certificate: Issuer: %#v\nand Subject: %#v", caCert.Issuer, caCert.Subject)
-	
+
 	// check if the signature matches
 	err = cl_cert.CheckSignatureFrom(caCert)
-	check (err) // TODO: give out neat error at validation failure, not a panic.
-	
+	check(err) // TODO: give out neat error at validation failure, not a panic.
+
 	// recurse to get higher up the tree.
 	chain, err = FetchCertificateChain(caCert, root)
 	if (err != nil) { return } // empty, err
@@ -218,11 +217,24 @@ func fetchCertificateChain(cl_cert *x509.Certificate, root *x509.Certificate) (c
 // FetchRootCA fetches the RootCA certificate for the given hostname.
 func FetchRootCA(hostname string) (*x509.Certificate, error) {
 	rootname := "RootCA." + hostname // per definition
+	return FetchCN(rootname)
+}
+
+
+// FetchFPCA fetches the FPCA certificate for the given hostname.
+func FetchFPCA(hostname string) (*x509.Certificate, error) {
+	fpcaname := "FPCA." + hostname // per definition
+	return FetchCN(fpcaname)
+}
+
+
+// FetchCN fetches a DANE record for CN in DNSSEC
+func FetchCN(cn string) (*x509.Certificate, error) {
 	unb := unbound.New()
-	rootCaCert, err := unb.GetCACert(rootname)
+	cert, err := unb.GetCACert(cn)
 	check(err)
-	log.Printf("Got certificate: Issuer: %#v\nand Subject: %#v", rootCaCert.Issuer, rootCaCert.Subject)
-	return rootCaCert, err
+	log.Printf("Got certificate: Issuer: %#v\nand Subject: %#v", cert.Issuer, cert.Subject)
+	return cert, err
 }
 
 
@@ -242,7 +254,7 @@ func ParseCertString(cert string) (*x509.Certificate, error) {
 // Parse a single (client) certificate,
 // Return a x509.Certificate structure
 func ParseCertByteA(cert []byte) (*x509.Certificate, error) {
-	// decode pem..., 
+	// decode pem...,
         pemBlock, _ := pem.Decode(cert)
 	if pemBlock == nil {
 		return nil, errors.New("Did not receive a PEM encoded block of data")
@@ -252,7 +264,7 @@ func ParseCertByteA(cert []byte) (*x509.Certificate, error) {
 		return nil, errors.New("Did not receive a PEM encoded certificate")
 	}
 
-        // check type..., 
+        // check type...,
         if pemBlock.Type != "CERTIFICATE" {
                 return nil, errors.New("Did not receive a PEM encoded certificate")
         }
@@ -275,7 +287,7 @@ func ParseCN(cn string) (username, realm string, err error) {
 		return match[1], match[2], nil
 	}
 	return "", "", errors.New("Certificate does not look like an Eccentric Authenticated client certificate. It has no <cn>@@sitename in the Subject.CommonName.")
-} 
+}
 
 func PEMEncode(cert *x509.Certificate) []byte {
 	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
